@@ -1,2 +1,0 @@
-euclid a 0: a
-euclid a b: euclid b a % b

@@ -4,6 +4,7 @@ project(darlang)
 set(
   DARLANG_SOURCES
   src/lexer.cc
+  src/parser.cc
   src/main.cc
 )
 

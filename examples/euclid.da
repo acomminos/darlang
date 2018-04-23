@@ -1,0 +1,2 @@
+int euclid a 0 = a
+int euclid a b = euclid b (a % b)
