@@ -40,16 +40,22 @@ Token Lexer::Next() {
 
   input_.get();
   switch (c) {
-    case ':':
+    case '=':
       return {Token::OP_ASSIGNMENT};
-    case '%':
-      return {Token::OP_MODULO};
     case ';':
       return {Token::BREAK};
     case '{':
       return {Token::BLOCK_START};
     case '}':
       return {Token::BLOCK_END};
+    case '(':
+      return {Token::BRACE_START};
+    case ')':
+      return {Token::BRACE_END};
+    case ':':
+      return {Token::COLON};
+    case '*':
+      return {Token::WILDCARD};
   }
 
   // Log unknown character, skip.
@@ -61,13 +67,17 @@ Token Lexer::Next() {
 }
 
 Token Lexer::ReadIdentifier() {
+  // Define constants as having all-caps identifiers.
+  bool all_caps = true;
   char c = input_.peek();
   std::string value;
   while (is_alpha(c) || is_numeric(c) || c == '_') {
+    all_caps &= ~(c >= 'a' && c <= 'z');
     value += input_.get();
     c = input_.peek();
   }
-  return {Token::ID, value};
+
+  return {all_caps ? Token::ID_CONSTANT : Token::ID, value};
 }
 
 Token Lexer::ReadNumericLiteral() {
@@ -87,7 +97,7 @@ Token Lexer::ReadNumericLiteral() {
     input_.get();
     c = input_.peek();
   }
-  return {Token::LITERAL_NUMERIC, value};
+  return {has_dot ? Token::LITERAL_NUMERIC : Token::LITERAL_INTEGRAL, value};
 }
 
 Token Lexer::ReadStringLiteral() {

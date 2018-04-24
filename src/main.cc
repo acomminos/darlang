@@ -2,6 +2,7 @@
 #include <iostream>
 
 #include "lexer.h"
+#include "parser.h"
 
 int main(int argc, char* argv[]) {
   if (argc == 1) {
@@ -13,11 +14,17 @@ int main(int argc, char* argv[]) {
 
     std::ifstream is(filename);
     darlang::Lexer l(is);
+    darlang::TokenStream ts(l);
 
+    darlang::Parser p(ts);
+    auto module = p.ParseModule();
+
+    /*
     darlang::Token tok;
     do {
       tok = l.Next();
       std::cout << "{ " << "type: " << tok.type << ", value: '" << tok.value << "' }" << std::endl;
     } while (tok.type != darlang::Token::END_OF_FILE);
+    */
   }
 }

@@ -1,2 +1,4 @@
-int euclid a 0 = a
-int euclid a b = euclid b (a % b)
+euclid a b = {
+  is b 0 : a;
+       * : euclid b (mod a b);
+}

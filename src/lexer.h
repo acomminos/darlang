@@ -2,6 +2,7 @@
 #define DARLANG_SRC_LEXER_H_
 
 #include <iostream>
+#include <stack>
 #include <string>
 #include <vector>
 
@@ -10,13 +11,18 @@ namespace darlang {
 struct Token {
   enum Type {
     ID,
+    ID_CONSTANT,
     BLOCK_START,
     BLOCK_END,
+    BRACE_START,
+    BRACE_END,
     BREAK,
     OP_ASSIGNMENT,
-    OP_MODULO,
     LITERAL_STRING,
+    LITERAL_INTEGRAL,
     LITERAL_NUMERIC,
+    COLON,
+    WILDCARD,
     END_OF_FILE
   } type;
   std::string value;
@@ -52,6 +58,41 @@ class Lexer {
 
   std::istream& input_;
   std::vector<std::string> errors_;
+};
+
+// A buffered proxy for a lexer.
+class TokenStream {
+ public:
+  TokenStream(Lexer& lexer) : lexer_(lexer) {}
+
+  Token Next() {
+    Token tok;
+    if (buffered_.size() > 0) {
+      tok = buffered_.top();
+      buffered_.pop();
+    } else {
+      tok = lexer_.Next();
+      // XXX(acomminos)
+      std::cout << "token { " << "type: " << tok.type << ", value: '" << tok.value << "' }" << std::endl;
+    }
+
+    return tok;
+  }
+
+  Token::Type PeekType() {
+    auto t = Next();
+    PutBack(t);
+    return t.type;
+  }
+
+  // Puts the given token at the front of the token stream.
+  void PutBack(Token t) {
+    buffered_.push(t);
+  }
+
+ private:
+  Lexer& lexer_;
+  std::stack<Token> buffered_;
 };
 
 }  // namespace darlang

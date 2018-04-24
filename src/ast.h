@@ -7,20 +7,25 @@
 namespace darlang {
 namespace ast {
 
-struct AssignmentNode;
-struct UnaryOperatorNode;
-struct BinaryOperatorNode;
+struct Node;
+struct ModuleNode;
+struct DeclarationNode;
+struct ConstantNode;
 struct IntegralLiteralNode;
 struct StringLiteralNode;
 struct InvocationNode;
+struct GuardNode;
+
+typedef std::unique_ptr<Node> NodePtr;
 
 struct Visitor {
-  virtual void Assignment(AssignmentNode& node) {}
-  virtual void UnaryOperator(UnaryOperatorNode& node) {}
-  virtual void BinaryOperator(BinaryOperatorNode& node) {}
+  virtual void Module(ModuleNode& node) {}
+  virtual void Declaration(DeclarationNode& node) {}
+  virtual void Constant(ConstantNode& node) {}
   virtual void IntegralLiteral(IntegralLiteralNode& node) {}
   virtual void StringLiteral(StringLiteralNode& node) {}
   virtual void Invocation(InvocationNode& node) {}
+  virtual void Guard(GuardNode& node) {}
 };
 
 struct Node {
@@ -28,37 +33,35 @@ struct Node {
   virtual void Visit(Visitor& visitor) = 0;
 };
 
-struct AssignmentNode : public Node {
+struct ModuleNode : public Node {
   void Visit(Visitor& visitor) override {
-    visitor.Assignment(*this);
+    visitor.Module(*this);
+  }
+
+  std::vector<std::unique_ptr<Node>> body;
+};
+
+struct DeclarationNode : public Node {
+  DeclarationNode(std::string id, std::vector<std::string> args, std::unique_ptr<Node> expr) : id(id), args(args), expr(std::move(expr)) {}
+
+  void Visit(Visitor& visitor) override {
+    visitor.Declaration(*this);
+  }
+
+  std::string id;
+  std::vector<std::string> args;
+  std::unique_ptr<Node> expr;
+};
+
+struct ConstantNode : public Node {
+  ConstantNode(std::string id, std::unique_ptr<Node> expr) : id(id), expr(std::move(expr)) {}
+
+  void Visit(Visitor& visitor) override {
+    visitor.Constant(*this);
   }
 
   std::string id;
   std::unique_ptr<Node> expr;
-};
-
-struct BinaryOperatorNode : public Node {
-  void Visit(Visitor& visitor) override {
-    visitor.BinaryOperator(*this);
-  }
-
-  enum Op {
-    MOD
-  } op;
-  std::unique_ptr<Node> lhs;
-  std::unique_ptr<Node> rhs;
-};
-
-struct UnaryOperatorNode : public Node {
-  void Visit(Visitor& visitor) override {
-    visitor.UnaryOperator(*this);
-  }
-
-  enum Op {
-    NOT
-  } op;
-  std::unique_ptr<Node> lhs;
-  std::unique_ptr<Node> rhs;
 };
 
 struct IntegralLiteralNode : public Node {
@@ -84,6 +87,15 @@ struct InvocationNode : public Node {
 
   std::string callee;
   std::vector<std::unique_ptr<Node>> args;
+};
+
+struct GuardNode : public Node {
+  void Visit(Visitor& visitor) override {
+    visitor.Guard(*this);
+  }
+
+  // (condition, value) expression tuples.
+  std::vector<std::pair<NodePtr, NodePtr>> cases;
 };
 
 }  // namespace ast
