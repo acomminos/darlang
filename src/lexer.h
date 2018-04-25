@@ -63,13 +63,28 @@ class Lexer {
 
   Token Next();
 
+  int line() const { return line_; }
+  int column() const { return column_; }
+
  private:
   Token ReadIdentifier();
   Token ReadNumericLiteral();
   Token ReadStringLiteral();
 
+  // Fetches a character from the stream, updating position information.
+  char getchar() {
+    char c = input_.get();
+    if (c == '\n') {
+      line_++;
+      column_ = 0;
+    } else {
+      column_++;
+    }
+    return c;
+  }
+
   void error(const std::string msg) {
-    errors_.push_back(msg);
+    errors_.push_back({msg, line_, column_});
     std::cerr << msg << std::endl;
   }
 
@@ -79,8 +94,10 @@ class Lexer {
     }
   }
 
+  int line_;
+  int column_;
   std::istream& input_;
-  std::vector<std::string> errors_;
+  std::vector<Error> errors_;
 };
 
 // A buffered proxy for a lexer.
@@ -98,6 +115,19 @@ class TokenStream {
     }
 
     return tok;
+  }
+
+  // Checks if the next token in the stream is of the given type- if it is,
+  // consume it and return true. Otherwise, return false and do nothing.
+  bool CheckNext(Token::Type type, Token* out_tok = nullptr) {
+    if (PeekType() == type) {
+      auto tok = Next();
+      if (out_tok) {
+        *out_tok = tok;
+      }
+      return true;
+    }
+    return false;
   }
 
   Token::Type PeekType() {

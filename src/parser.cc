@@ -28,7 +28,7 @@ ast::NodePtr Parser::ParseDecl() {
   std::vector<std::string> args;
   while (ts_.PeekType() != Token::BRACE_END) {
     args.push_back(expect_next(Token::ID).value);
-    if (!check_next(Token::COMMA)) {
+    if (!ts_.CheckNext(Token::COMMA)) {
       break;
     }
   }
@@ -94,7 +94,7 @@ ast::NodePtr Parser::ParseGuard() {
 
   while (ts_.PeekType() != Token::BLOCK_END) {
     ast::NodePtr cond_expr;
-    if (check_next(Token::WILDCARD)) {
+    if (ts_.CheckNext(Token::WILDCARD)) {
       // Special case wildcards as universally true.
       cond_expr = std::make_unique<ast::BooleanLiteralNode>(true);
     } else {
@@ -109,13 +109,13 @@ ast::NodePtr Parser::ParseGuard() {
         {std::move(cond_expr), std::move(value_expr)}
     );
 
-    if (!check_next(Token::BREAK)) {
+    if (!ts_.CheckNext(Token::BREAK)) {
       break;
     }
   }
 
   // Allow optional trailing break.
-  check_next(Token::BREAK);
+  ts_.CheckNext(Token::BREAK);
 
   expect_next(Token::BLOCK_END);
 
@@ -134,7 +134,7 @@ ast::NodePtr Parser::ParseInvoke() {
     auto expr = ParseExpr();
     invoke_node->args.push_back(std::move(expr));
 
-    if (!check_next(Token::COMMA)) {
+    if (!ts_.CheckNext(Token::COMMA)) {
       break;
     }
   }

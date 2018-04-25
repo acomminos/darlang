@@ -18,7 +18,7 @@ Token Lexer::Next() {
 
   // Skip whitespace.
   if (c == ' ' || c == '\t' || c == '\n') {
-    input_.get();
+    getchar();
     return Next();
   }
 
@@ -38,7 +38,7 @@ Token Lexer::Next() {
     return ReadStringLiteral();
   }
 
-  input_.get();
+  getchar();
   switch (c) {
     case '=':
       return {Token::OP_ASSIGNMENT};
@@ -75,7 +75,7 @@ Token Lexer::ReadIdentifier() {
   std::string value;
   while (is_alpha(c) || is_numeric(c) || c == '_') {
     all_caps &= ~(c >= 'a' && c <= 'z');
-    value += input_.get();
+    value += getchar();
     c = input_.peek();
   }
 
@@ -96,7 +96,7 @@ Token Lexer::ReadNumericLiteral() {
       }
     }
     value += c;
-    input_.get();
+    getchar();
     c = input_.peek();
   }
   return {has_dot ? Token::LITERAL_NUMERIC : Token::LITERAL_INTEGRAL, value};
@@ -115,7 +115,7 @@ Token Lexer::ReadStringLiteral() {
       literal += c;
       escape = false;
     }
-    input_.get();
+    getchar();
     c = input_.peek();
   }
 
