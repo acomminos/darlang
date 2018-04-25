@@ -21,11 +21,30 @@ struct Token {
     LITERAL_STRING,
     LITERAL_INTEGRAL,
     LITERAL_NUMERIC,
+    COMMA,
     COLON,
     WILDCARD,
     END_OF_FILE
   } type;
   std::string value;
+};
+
+static const char* TOKEN_NAMES[] = {
+  "identifier",
+  "constant identifier",
+  "block start",
+  "block end",
+  "brace start",
+  "brace end",
+  "break",
+  "assignment",
+  "string literal",
+  "integral literal",
+  "numeric literal",
+  "comma",
+  "colon",
+  "wildcard",
+  "eof",
 };
 
 class Lexer {
@@ -73,7 +92,7 @@ class TokenStream {
     } else {
       tok = lexer_.Next();
       // XXX(acomminos)
-      std::cout << "token { " << "type: " << tok.type << ", value: '" << tok.value << "' }" << std::endl;
+      std::cout << "token { " << "type: " << TOKEN_NAMES[tok.type] << ", value: '" << tok.value << "' }" << std::endl;
     }
 
     return tok;

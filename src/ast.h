@@ -11,8 +11,10 @@ struct Node;
 struct ModuleNode;
 struct DeclarationNode;
 struct ConstantNode;
+struct IdExpressionNode;
 struct IntegralLiteralNode;
 struct StringLiteralNode;
+struct BooleanLiteralNode;
 struct InvocationNode;
 struct GuardNode;
 
@@ -22,8 +24,10 @@ struct Visitor {
   virtual void Module(ModuleNode& node) {}
   virtual void Declaration(DeclarationNode& node) {}
   virtual void Constant(ConstantNode& node) {}
+  virtual void IdExpression(IdExpressionNode& node) {}
   virtual void IntegralLiteral(IntegralLiteralNode& node) {}
   virtual void StringLiteral(StringLiteralNode& node) {}
+  virtual void BooleanLiteral(BooleanLiteralNode& node) {}
   virtual void Invocation(InvocationNode& node) {}
   virtual void Guard(GuardNode& node) {}
 };
@@ -53,6 +57,16 @@ struct DeclarationNode : public Node {
   std::unique_ptr<Node> expr;
 };
 
+struct IdExpressionNode : public Node {
+  IdExpressionNode(std::string id) : id(id) {}
+
+  void Visit(Visitor& visitor) override {
+    visitor.IdExpression(*this);
+  }
+
+  std::string id;
+};
+
 struct ConstantNode : public Node {
   ConstantNode(std::string id, std::unique_ptr<Node> expr) : id(id), expr(std::move(expr)) {}
 
@@ -78,6 +92,16 @@ struct StringLiteralNode : public Node {
   }
 
   std::string literal;
+};
+
+struct BooleanLiteralNode : public Node {
+  BooleanLiteralNode(bool literal) : literal(literal) {}
+
+  void Visit(Visitor& visitor) override {
+    visitor.BooleanLiteral(*this);
+  }
+
+  bool literal;
 };
 
 struct InvocationNode : public Node {

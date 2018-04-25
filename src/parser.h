@@ -15,16 +15,28 @@ class Parser {
    ast::NodePtr ParseDecl();
    ast::NodePtr ParseConstantDecl();
    ast::NodePtr ParseExpr();
+   ast::NodePtr ParseIdentExpr(); // parses an expression prefixed by an id
    ast::NodePtr ParseGuard();
    ast::NodePtr ParseInvoke();
    ast::NodePtr ParseStringLiteral();
    ast::NodePtr ParseIntegralLiteral();
 
+   // Returns true if the next token is of the given type, and removes it from
+   // the stream. Does nothing otherwise.
+   bool check_next(Token::Type type) {
+     if (ts_.PeekType() == type) {
+       ts_.Next();
+       return true;
+     }
+     return false;
+   }
+
    Token expect_next(Token::Type type) {
      auto tok = ts_.Next();
      if (tok.type != type) {
-       std::cerr << "Parser expected token " << type << ", got " << tok.type << std::endl;
+       std::cerr << "Parser expected token " << TOKEN_NAMES[type] << ", got " << TOKEN_NAMES[tok.type] << std::endl;
        // TODO(acomminos): log error
+       *(int*)(NULL) = 0;
      }
      return tok;
    }

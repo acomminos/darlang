@@ -1,4 +1,4 @@
-euclid a b = {
-  is b 0 : a;
-       * : euclid b (mod a b);
+euclid(a,b) = {
+  is(b,0) : a;
+        * : euclid(b, mod(a,b));
 }

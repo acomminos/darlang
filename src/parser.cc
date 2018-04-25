@@ -2,17 +2,6 @@
 
 namespace darlang {
 
-// Returns if the given token type is valid lookahead for an expression value.
-static inline bool is_expr_lookahead(Token::Type type) {
-  return type == Token::ID ||
-         type == Token::ID_CONSTANT ||
-         type == Token::BRACE_START ||
-         type == Token::BLOCK_START ||
-         type == Token::LITERAL_STRING ||
-         type == Token::LITERAL_INTEGRAL ||
-         type == Token::LITERAL_NUMERIC;
-}
-
 ast::NodePtr Parser::ParseModule() {
   auto node_module = std::make_unique<ast::ModuleNode>();
   while (ts_.PeekType() != Token::END_OF_FILE) {
@@ -34,10 +23,17 @@ ast::NodePtr Parser::ParseModule() {
 ast::NodePtr Parser::ParseDecl() {
   auto tok_id = expect_next(Token::ID);
 
+  expect_next(Token::BRACE_START);
+
   std::vector<std::string> args;
-  while (ts_.PeekType() == Token::ID) {
-    args.push_back(ts_.Next().value);
+  while (ts_.PeekType() != Token::BRACE_END) {
+    args.push_back(expect_next(Token::ID).value);
+    if (!check_next(Token::COMMA)) {
+      break;
+    }
   }
+
+  expect_next(Token::BRACE_END);
 
   expect_next(Token::OP_ASSIGNMENT);
 
@@ -56,9 +52,10 @@ ast::NodePtr Parser::ParseConstantDecl() {
 ast::NodePtr Parser::ParseExpr() {
   switch (ts_.PeekType()) {
     case Token::ID:
-      return ParseInvoke();
+      return ParseIdentExpr();
+// TODO(acomminos)
 //    case Token::ID_CONSTANT:
-//      return ParseConstantRef();
+//      return ParseConstantExpr();
     case Token::BLOCK_START:
       return ParseGuard();
     case Token::BRACE_START:
@@ -72,8 +69,22 @@ ast::NodePtr Parser::ParseExpr() {
       return ParseStringLiteral();
     case Token::LITERAL_INTEGRAL:
       return ParseIntegralLiteral();
+    default:
+      // TODO: throw error
+      break;
   }
   return nullptr;
+}
+
+ast::NodePtr Parser::ParseIdentExpr() {
+  auto ident = expect_next(Token::ID);
+  switch (ts_.PeekType()) {
+    case Token::BRACE_START:
+      ts_.PutBack(ident);
+      return ParseInvoke();
+    default:
+      return std::make_unique<ast::IdExpressionNode>(ident.value);
+  }
 }
 
 ast::NodePtr Parser::ParseGuard() {
@@ -82,11 +93,24 @@ ast::NodePtr Parser::ParseGuard() {
   auto guard_node = std::make_unique<ast::GuardNode>();
 
   while (ts_.PeekType() != Token::BLOCK_END) {
-    auto cond_expr = ParseExpr();
+    ast::NodePtr cond_expr;
+    if (check_next(Token::WILDCARD)) {
+      // Special case wildcards as universally true.
+      cond_expr = std::make_unique<ast::BooleanLiteralNode>(true);
+    } else {
+      cond_expr = ParseExpr();
+    }
+
     expect_next(Token::COLON);
     auto value_expr = ParseExpr();
-    expect_next(Token::BREAK);
+
+    if (!check_next(Token::BREAK)) {
+      break;
+    }
   }
+
+  // Allow optional trailing break.
+  check_next(Token::BREAK);
 
   expect_next(Token::BLOCK_END);
 
@@ -99,9 +123,18 @@ ast::NodePtr Parser::ParseInvoke() {
   auto func_tok = expect_next(Token::ID);
   invoke_node->callee = func_tok.value;
 
-  while (is_expr_lookahead(ts_.PeekType())) {
-    invoke_node->args.push_back(ParseExpr());
+  expect_next(Token::BRACE_START);
+
+  while (ts_.PeekType() != Token::BRACE_END) {
+    auto expr = ParseExpr();
+    invoke_node->args.push_back(std::move(expr));
+
+    if (!check_next(Token::COMMA)) {
+      break;
+    }
   }
+
+  expect_next(Token::BRACE_END);
 
   return std::move(invoke_node);
 }

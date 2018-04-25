@@ -52,6 +52,8 @@ Token Lexer::Next() {
       return {Token::BRACE_START};
     case ')':
       return {Token::BRACE_END};
+    case ',':
+      return {Token::COMMA};
     case ':':
       return {Token::COLON};
     case '*':
