@@ -47,6 +47,10 @@ static const char* TOKEN_NAMES[] = {
   "eof",
 };
 
+inline std::ostream& operator<<(std::ostream& os, const Token& tok) {
+  return os << "{" << "type: " << TOKEN_NAMES[tok.type] << ", value: '" << tok.value << "'}";
+}
+
 class Lexer {
  public:
   struct Error {
@@ -91,8 +95,6 @@ class TokenStream {
       buffered_.pop();
     } else {
       tok = lexer_.Next();
-      // XXX(acomminos)
-      std::cout << "token { " << "type: " << TOKEN_NAMES[tok.type] << ", value: '" << tok.value << "' }" << std::endl;
     }
 
     return tok;

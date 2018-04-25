@@ -1,5 +1,5 @@
-#ifndef DARLANG_SRC_AST_H_
-#define DARLANG_SRC_AST_H_
+#ifndef DARLANG_SRC_AST_TYPES_H_
+#define DARLANG_SRC_AST_TYPES_H_
 
 #include <memory>
 #include <vector>
@@ -125,4 +125,4 @@ struct GuardNode : public Node {
 }  // namespace ast
 }  // namespace darlang
 
-#endif  // DARLANG_SRC_AST_H_
+#endif  // DARLANG_SRC_AST_TYPES_H_

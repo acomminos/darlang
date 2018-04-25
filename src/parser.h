@@ -1,7 +1,7 @@
 #ifndef DARLANG_SRC_PARSER_H_
 #define DARLANG_SRC_PARSER_H_
 
-#include "ast.h"
+#include "ast/types.h"
 #include "lexer.h"
 
 namespace darlang {

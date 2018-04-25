@@ -102,7 +102,12 @@ ast::NodePtr Parser::ParseGuard() {
     }
 
     expect_next(Token::COLON);
+
     auto value_expr = ParseExpr();
+
+    guard_node->cases.push_back(
+        {std::move(cond_expr), std::move(value_expr)}
+    );
 
     if (!check_next(Token::BREAK)) {
       break;

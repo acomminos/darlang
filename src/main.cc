@@ -3,6 +3,7 @@
 
 #include "lexer.h"
 #include "parser.h"
+#include "ast/prettyprinter.h"
 
 int main(int argc, char* argv[]) {
   if (argc == 1) {
@@ -18,6 +19,9 @@ int main(int argc, char* argv[]) {
 
     darlang::Parser p(ts);
     auto module = p.ParseModule();
+
+    darlang::ast::PrettyPrinter pp;
+    module->Visit(pp);
 
     /*
     darlang::Token tok;
