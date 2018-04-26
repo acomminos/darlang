@@ -1,14 +1,17 @@
 #ifndef DARLANG_SRC_PARSER_H_
 #define DARLANG_SRC_PARSER_H_
 
+#include <sstream>
+
 #include "ast/types.h"
 #include "lexer.h"
+#include "logger.h"
 
 namespace darlang {
 
 class Parser {
  public:
-   Parser(TokenStream& ts) : ts_(ts) {}
+   Parser(Logger& log, TokenStream& ts) : log_(log), ts_(ts) {}
    ast::NodePtr ParseModule();
 
  private:
@@ -24,15 +27,14 @@ class Parser {
    Token expect_next(Token::Type type) {
      auto tok = ts_.Next();
      if (tok.type != type) {
-       std::cerr << "Parser expected token " << TOKEN_NAMES[type] << ", got " << TOKEN_NAMES[tok.type] << std::endl;
-       // TODO(acomminos): log error
-       *(int*)(NULL) = 0;
+       std::stringstream ss;
+       ss << "expected token " << Token::TypeNames[type] << ", got " << Token::TypeNames[tok.type];
+       log_.Fatal(ss.str(), ts_.line(), ts_.column());
      }
      return tok;
    }
 
-   // TODO: error accumulator list
-
+   Logger& log_;
    TokenStream& ts_;
 };
 

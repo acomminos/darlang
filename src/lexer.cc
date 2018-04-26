@@ -4,6 +4,24 @@
 
 namespace darlang {
 
+const char* Token::TypeNames[] = {
+  "identifier",
+  "constant identifier",
+  "block start",
+  "block end",
+  "brace start",
+  "brace end",
+  "break",
+  "assignment",
+  "string literal",
+  "integral literal",
+  "numeric literal",
+  "comma",
+  "colon",
+  "wildcard",
+  "eof",
+};
+
 static bool is_alpha(char c) {
   return (c >= 'a' && c <= 'z') ||
          (c >= 'A' && c <= 'Z');

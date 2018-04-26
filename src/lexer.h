@@ -3,14 +3,20 @@
 
 #include <iostream>
 #include <stack>
+#include <sstream>
 #include <string>
 #include <vector>
+
+#include "logger.h"
 
 namespace darlang {
 
 struct Token {
+  // Human-readable type labels indexed by Token::Type.
+  static const char* TypeNames[];
+
   enum Type {
-    ID,
+    ID = 0,
     ID_CONSTANT,
     BLOCK_START,
     BLOCK_END,
@@ -29,37 +35,13 @@ struct Token {
   std::string value;
 };
 
-static const char* TOKEN_NAMES[] = {
-  "identifier",
-  "constant identifier",
-  "block start",
-  "block end",
-  "brace start",
-  "brace end",
-  "break",
-  "assignment",
-  "string literal",
-  "integral literal",
-  "numeric literal",
-  "comma",
-  "colon",
-  "wildcard",
-  "eof",
-};
-
 inline std::ostream& operator<<(std::ostream& os, const Token& tok) {
-  return os << "{" << "type: " << TOKEN_NAMES[tok.type] << ", value: '" << tok.value << "'}";
+  return os << "{" << "type: " << Token::TypeNames[tok.type] << ", value: '" << tok.value << "'}";
 }
 
 class Lexer {
  public:
-  struct Error {
-    std::string message;
-    int line;
-    int column;
-  };
-
-  Lexer(std::istream& input) : input_(input) {}
+  Lexer(Logger& log, std::istream& input) : log_(log), input_(input), line_(0), column_(0) {}
 
   Token Next();
 
@@ -84,20 +66,22 @@ class Lexer {
   }
 
   void error(const std::string msg) {
-    errors_.push_back({msg, line_, column_});
-    std::cerr << msg << std::endl;
+    log_.Fatal(msg, line_, column_);
   }
 
   void expect_next(char c) {
-    if (input_.get() != c) {
-      error("TODO"); // TODO(acomminos)
+    auto next = input_.get();
+    if (next != c) {
+     std::stringstream ss;
+     ss << "expected character " << c << ", got " << next;
+     error(ss.str());
     }
   }
 
+  Logger& log_;
+  std::istream& input_;
   int line_;
   int column_;
-  std::istream& input_;
-  std::vector<Error> errors_;
 };
 
 // A buffered proxy for a lexer.
@@ -140,6 +124,9 @@ class TokenStream {
   void PutBack(Token t) {
     buffered_.push(t);
   }
+
+  int line() { return lexer_.line(); }
+  int column() { return lexer_.column(); }
 
  private:
   Lexer& lexer_;
