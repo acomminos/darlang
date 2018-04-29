@@ -1,12 +1,10 @@
-data User = {
+User = data {
   name: string,
   email: string,
   age: int32,
 }
 
-let age (int) = 64
-
-let test_user (User) = {
+test_user = User {
   name: "Test user",
   email: "test@example.com",
   age: age,

@@ -42,6 +42,7 @@ struct ModuleNode : public Node {
     visitor.Module(*this);
   }
 
+  std::string name;
   std::vector<std::unique_ptr<Node>> body;
 };
 

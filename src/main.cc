@@ -5,6 +5,10 @@
 #include "logger.h"
 #include "parser.h"
 #include "ast/prettyprinter.h"
+#include "backend/llvm_backend.h"
+
+// XXX(acomminos): just for printing IR
+#include "llvm/Support/raw_ostream.h"
 
 int main(int argc, char* argv[]) {
   if (argc == 1) {
@@ -25,12 +29,8 @@ int main(int argc, char* argv[]) {
     darlang::ast::PrettyPrinter pp;
     module->Visit(pp);
 
-    /*
-    darlang::Token tok;
-    do {
-      tok = l.Next();
-      std::cout << "{ " << "type: " << tok.type << ", value: '" << tok.value << "' }" << std::endl;
-    } while (tok.type != darlang::Token::END_OF_FILE);
-    */
+    llvm::LLVMContext llvm_context;
+    auto llvm_module = darlang::backend::LLVMModuleTransformer::Transform(llvm_context, *module);
+    llvm_module->print(llvm::errs(), nullptr);
   }
 }
