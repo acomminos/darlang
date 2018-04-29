@@ -2,6 +2,7 @@
 #define DARLANG_SRC_BACKEND_LLVM_BACKEND_H_
 
 #include <memory>
+#include <unordered_map>
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
@@ -10,6 +11,11 @@
 
 namespace darlang {
 namespace backend {
+
+// Unscoped symbol table for function argument values.
+typedef std::unordered_map<std::string, llvm::Value*> ArgumentSymbolTable;
+// Global function table produced by the declaration transform.
+typedef std::unordered_map<std::string, llvm::Function*> FunctionTable;
 
 class LLVMModuleTransformer : public ast::Visitor {
  public:
@@ -28,7 +34,10 @@ class LLVMModuleTransformer : public ast::Visitor {
 // Transforms top-level function and constant declarations in a module.
 class LLVMDeclarationTransformer : public ast::Visitor {
  public:
-  LLVMDeclarationTransformer(llvm::LLVMContext& context, llvm::Module* module) : context_(context), module_(module) {}
+  LLVMDeclarationTransformer(llvm::LLVMContext& context, llvm::Module* module)
+    : context_(context), module_(module) {}
+
+  FunctionTable& func_table() { return func_table_; }
 
  private:
   void Declaration(ast::DeclarationNode& node) override;
@@ -36,29 +45,56 @@ class LLVMDeclarationTransformer : public ast::Visitor {
 
   llvm::LLVMContext& context_;
   llvm::Module* module_;
+  FunctionTable func_table_;
 };
 
-// Transforms AST nodes representing an expression into a llvm::Value*.
+// Generates function bodies.
+class LLVMFunctionTransformer : public ast::Visitor {
+ public:
+  LLVMFunctionTransformer(llvm::LLVMContext& context,
+                          llvm::Module* module,
+                          FunctionTable& func_table)
+    : context_(context), module_(module), func_table_(func_table) {}
+
+ private:
+  void Declaration(ast::DeclarationNode& node) override;
+
+  llvm::LLVMContext& context_;
+  llvm::Module* module_;
+  FunctionTable& func_table_;
+};
+
+// Transforms AST nodes representing an expression into a llvm::Value* within
+// the block targeted by the provided IRBuilder.
 class LLVMValueTransformer : public ast::Visitor {
  public:
-  static llvm::Value* Transform(llvm::LLVMContext& context, llvm::IRBuilder<>& builder, ast::Node& node);
+  static llvm::Value* Transform(llvm::LLVMContext& context,
+                                llvm::IRBuilder<>& builder,
+                                ast::Node& node,
+                                FunctionTable& funcs,
+                                ArgumentSymbolTable& symbols);
 
-  /*
-  void IdExpression(ast::IdExpressionNode& node);
-  void IntegralLiteral(ast::IntegralLiteralNode& node);
-  void StringLiteral(ast::StringLiteralNode& node);
+  void IdExpression(ast::IdExpressionNode& node) override;
+  void IntegralLiteral(ast::IntegralLiteralNode& node) override;
   void BooleanLiteral(ast::BooleanLiteralNode& node);
-  void Invocation(ast::InvocationNode& node);
-  */
-  void Guard(ast::GuardNode& node);
+  void Invocation(ast::InvocationNode& node) override;
+  void Guard(ast::GuardNode& node) override;
 
   llvm::Value* value() { return value_; }
 
  private:
-  LLVMValueTransformer(llvm::LLVMContext& context, llvm::IRBuilder<>& builder) : context_(context), builder_(builder), value_(nullptr) {}
+  LLVMValueTransformer(llvm::LLVMContext& context, llvm::IRBuilder<>& builder,
+                       FunctionTable& funcs, ArgumentSymbolTable& symbols)
+    : context_(context)
+    , builder_(builder)
+    , funcs_(funcs)
+    , symbols_(symbols)
+    , value_(nullptr) {}
 
   llvm::LLVMContext& context_;
   llvm::IRBuilder<>& builder_;
+  FunctionTable& funcs_;
+  ArgumentSymbolTable& symbols_;
   llvm::Value* value_;
 };
 
