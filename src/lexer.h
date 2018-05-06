@@ -41,10 +41,12 @@ inline std::ostream& operator<<(std::ostream& os, const Token& tok) {
 
 class Lexer {
  public:
-  Lexer(Logger& log, std::istream& input) : log_(log), input_(input), line_(0), column_(0) {}
+  Lexer(Logger& log, std::istream& input, const std::string filename = "unknown")
+    : log_(log), input_(input), file_(filename), line_(0), column_(0) {}
 
   Token Next();
 
+  std::string file() const { return file_; }
   int line() const { return line_; }
   int column() const { return column_; }
 
@@ -80,6 +82,7 @@ class Lexer {
 
   Logger& log_;
   std::istream& input_;
+  const std::string file_;
   int line_;
   int column_;
 };
@@ -125,8 +128,9 @@ class TokenStream {
     buffered_.push(t);
   }
 
-  int line() { return lexer_.line(); }
-  int column() { return lexer_.column(); }
+  std::string file() const { return lexer_.file(); }
+  int line() const { return lexer_.line(); }
+  int column() const { return lexer_.column(); }
 
  private:
   Lexer& lexer_;

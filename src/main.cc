@@ -20,7 +20,7 @@ int main(int argc, char* argv[]) {
     const char* filename = argv[i];
 
     std::ifstream is(filename);
-    darlang::Lexer l(logger, is);
+    darlang::Lexer l(logger, is, filename);
     darlang::TokenStream ts(l);
 
     darlang::Parser p(logger, ts);

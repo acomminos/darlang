@@ -32,9 +32,20 @@ struct Visitor {
   virtual void Guard(GuardNode& node) {}
 };
 
+struct Location {
+  std::string file;
+  int line;
+  int column;
+};
+
 struct Node {
   // Invokes the visitor on this node, and all child nodes.
   virtual void Visit(Visitor& visitor) = 0;
+
+  // Beginning of the range (inclusive) that this node was parsed from.
+  Location start;
+  // End of the range (inclusive) that this node was parsed from.
+  Location end;
 };
 
 struct ModuleNode : public Node {

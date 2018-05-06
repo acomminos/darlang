@@ -4,6 +4,7 @@ namespace darlang {
 
 ast::NodePtr Parser::ParseModule() {
   auto node_module = std::make_unique<ast::ModuleNode>();
+  node_module->start = location();
   while (ts_.PeekType() != Token::END_OF_FILE) {
     switch (ts_.PeekType()) {
       case Token::ID:
@@ -17,7 +18,8 @@ ast::NodePtr Parser::ParseModule() {
         return node_module;
     }
   }
-  return node_module;
+  node_module->end = location();
+  return std::move(node_module);
 }
 
 ast::NodePtr Parser::ParseDecl() {

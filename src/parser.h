@@ -24,6 +24,12 @@ class Parser {
    ast::NodePtr ParseStringLiteral();
    ast::NodePtr ParseIntegralLiteral();
 
+   // Returns the current position within the source file, formatted as an
+   // ast::Location.
+   inline ast::Location location() {
+     return {ts_.file(), ts_.line(), ts_.column()};
+   }
+
    Token expect_next(Token::Type type) {
      auto tok = ts_.Next();
      if (tok.type != type) {
