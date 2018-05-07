@@ -6,6 +6,8 @@
 namespace darlang {
 namespace typing {
 
+class Typeable;
+
 // A registry of predefined types.
 class TypeSystem {
  private:
