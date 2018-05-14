@@ -4,26 +4,14 @@
 namespace darlang {
 namespace typing {
 
-class FunctionType {
- private:
-  std::vector<Type> args_;
-};
-
-class StructType {
- private:
-  std::unordered_map<std::string, Type> members_;
-};
-
-enum class Primitive {
+enum class PrimitiveType {
   Int64,
-  Bool,
+  Float,
+  Boolean,
   String,
-  Struct,
-  Function,
 };
 
-class PrimitiveType {
-};
+// TODO(acomminos): concrete type instantiations?
 
 }  // namespace typing
 }  // namespace darlang

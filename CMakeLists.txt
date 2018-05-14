@@ -17,8 +17,12 @@ set(
 
 add_executable(darlang ${DARLANG_SOURCES})
 
+set_property(TARGET darlang PROPERTY CXX_STANDARD 17)
+
 llvm_map_components_to_libnames(llvm_libs support core)
 
 target_link_libraries(darlang ${llvm_libs})
 
 target_include_directories(darlang PUBLIC ${CMAKE_SOURCE_DIR}/src)
+
+#target_compile_options(darlang PRIVATE -Wall -Werror)

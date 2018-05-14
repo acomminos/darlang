@@ -3,9 +3,3 @@ afunc = [
   print("yep");
   Y = euclid(X, 20);
 ] returns Y
-
-bfunc = Y from [
-  X = euclid(10, 15);
-  print("yep");
-  Y = euclid(X, 20);
-]

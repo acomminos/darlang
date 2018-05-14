@@ -6,45 +6,32 @@ namespace darlang {
 namespace typing {
 
 void TypeTransform::Module(ast::ModuleNode& node) {
+  TypeableMap global_scope;
   for (auto& child : node.body) {
-    DeclarationTypeTransform decl_transform(type_system_, global_scope_);
+    DeclarationTypeTransform decl_transform(global_scope);
     child->Visit(decl_transform);
   }
+  set_result(global_scope);
 }
 
 void DeclarationTypeTransform::Declaration(ast::DeclarationNode& node) {
-  auto& func_typeable = type_system_.CreateTypeable();
-  global_scope_.Assign(node.id, func_typeable);
+  auto func_typeable = std::make_unique<Typeable>();
+  // TODO: transfer ownership of func_typeable to definition
+  global_scope_.Assign(node.id, func_typeable.get());
 
   TypeableMap func_scope(&global_scope_);
-  int arg_idx = 0;
-  for (auto& arg : node.args) {
-    func_scope.Assign(arg, func_typeable.Argument(arg_idx++, arg));
-  }
+  auto& args = func_typeable->Arguments(
 
-  auto expr_typeable = ExpressionTypeTransform::Transform(type_system_, func_scope, *node.expr);
+  auto expr_typeable = ExpressionTypeTransform(func_scope).Reduce(*node.expr);
   assert(expr_typeable);
-
-  func_typeable.Returns(expr_typeable);
-}
-
-/* static */
-Typeable* ExpressionTypeTransform::Transform(
-    TypeSystem& type_system,
-    const TypeableMap& scope,
-    ast::Node& node)
-{
-  ExpressionTypeTransform transform(type_system, scope);
-  node.Visit(transform);
-  assert(transform.result());
-  return transform.result();
+  assert(func_typeable.Yields()->Unify(expr_typeable));
 }
 
 void ExpressionTypeTransform::Invocation(ast::InvocationNode& node) {
 }
 
 void ExpressionTypeTransform::Guard(ast::GuardNode& node) {
-  auto guard_typeable = type_system_.CreateTypeable();
+  auto guard_typeable = std::make_unique<Typeable>();
   for (auto& guard_case : node.cases) {
   }
 }

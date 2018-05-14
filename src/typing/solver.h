@@ -1,71 +1,89 @@
 #ifndef DARLANG_SRC_TYPING_SOLVER_H_
 #define DARLANG_SRC_TYPING_SOLVER_H_
 
+#include <cassert>
+#include <memory>
+#include <vector>
 #include "types.h"
 
 namespace darlang {
 namespace typing {
 
 class Typeable;
-
-// A registry of predefined types.
-class TypeSystem {
- private:
-  StructDef user_structs_;
-  FuncDef user_funcs_;
-};
+class TypeSolver;
 
 // Holds either a TypeSolver or reference to a parent the typeable has been
 // merged with.
 class Typeable {
  public:
+  // Instantiates a new unbound typeable.
+  Typeable();
   // Unifies a typeable into this typeable, intersecting their type solvers.
-  void Unify(Typeable& other);
+  bool Unify(Typeable& other);
+  // Obtains the TypeSolver determining this Typeable.
+  TypeSolver* Solver();
  private:
   std::unique_ptr<TypeSolver> solver_;
   Typeable* parent_;
 };
 
-// A TypeSolver is responsible for deriving composite and singular types.
-// Subtypes of the type being built may be either named or indexed. These
-// subtypes have their own groups/solvers.
-//
-// Examples:
-//  Struct: (f1:string) -> (f2:string) -> struct
-//  Function: (arg1:int64) -> string
-//  Primitive: int64
-//
+// A high-level classification of the type being solved for.
+enum class TypeClass {
+  UNBOUND = 0,
+  PRIMITIVE, // Has primitive field data.
+  FUNCTION,
+};
+
+// A TypeSolver is responsible for classifying and generating interfaces for
+// types based on how they're used in the AST. The interface is designed to be
+// simple to use while observing particular usages of an identifier.
 class TypeSolver {
  public:
-  TypeSolver(TypeSystem& system) : system_(system) {}
-
-  Type Solve();
+  TypeSolver() : class_(TypeClass::UNBOUND), arguments_valid_(false), yields_(nullptr) {}
 
   // Merges constraints from the given solver into this solver.
-  void Intersect(TypeSolver& solver);
+  // Returns false if unification failed.
+  bool Unify(TypeSolver& other);
 
-  // Adds a constraint to the parent type.
-  void Constrain(TypeConstraint constraint);
+  // Solves this TypeSolver as the given primitive.
+  // Returns false if this causes a contradiction.
+  bool Primitive(PrimitiveType primitive);
 
-  // Returns the Typeable for a member's identifier.
-  // Implicitly defines a member with the provided identifier if not present,
-  // and constrains the parent type to be a struct.
-  Typeable* Member(const std::string id);
+  // Returns a set of `count` arguments associated with the function.
+  // If the arguments of this typeable have already been accessed with a
+  // different cardinality, raises an error.
+  // The typeable is implicitly specialized as a function.
+  std::vector<Typeable>& Arguments(int count);
 
-  // Returns the Typeable for the argument at the given index.
-  // Implicitly produces a solvable type at this position, and constrains the
-  // parent type to be a function.
-  Typeable* Argument(int index);
-
-  // Returns the Typeable of the return value.
+  // Returns the Typeable of the (implicitly-defined) return value.
   Typeable* Yields();
 
- private:
-  TypeSystem& system_;
+  TypeClass type_class() const { return class_; }
+  bool arguments_valid() const { return arguments_valid_; }
+  bool has_yields() const { return !!yields_; }
 
-  std::vector<TypeConstraint> constraints_;
-  std::unordered_map<int, Typeable*> arguments_;
-  std::unordered_map<std::string, Typeable*> members_;
+ private:
+  // Shifts the solver to the given TypeClass from the initial unbound state, or
+  // throws an assertion if the solver is already specialized.
+  inline void classify(TypeClass tc) {
+    if (class_ == TypeClass::UNBOUND) {
+      class_ = tc;
+    }
+    // TODO(acomminos): add error logging
+    assert(class_ == tc);
+  }
+
+  std::vector<Typeable>& arguments() {
+    assert(arguments_valid_);
+    return arguments_;
+  }
+
+  TypeClass class_;
+
+  PrimitiveType primitive_;
+  bool arguments_valid_; // true iff arguments has been constrained
+  std::vector<Typeable> arguments_;
+  std::unique_ptr<Typeable> yields_;
 };
 
 }  // namespace typing
