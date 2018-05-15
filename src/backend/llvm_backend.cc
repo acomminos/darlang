@@ -116,11 +116,9 @@ bool LLVMValueTransformer::Guard(ast::GuardNode& node) {
   auto parent_func = builder_.GetInsertBlock()->getParent();
 
   // Block containing branches to various case blocks.
-  auto prelude_block = llvm::BasicBlock::Create(context_);
+  auto prelude_block = builder_.GetInsertBlock();
   // Combinator block joining cases.
   auto terminal_block = llvm::BasicBlock::Create(context_);
-
-  parent_func->getBasicBlockList().push_back(prelude_block);
 
   // Insert a phi node as the first instruction in the terminal block.
   builder_.SetInsertPoint(terminal_block);
