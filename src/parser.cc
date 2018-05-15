@@ -6,17 +6,20 @@ ast::NodePtr Parser::ParseModule() {
   auto node_module = std::make_unique<ast::ModuleNode>();
   node_module->start = location();
   while (ts_.PeekType() != Token::END_OF_FILE) {
+    std::unique_ptr<ast::Node> child;
     switch (ts_.PeekType()) {
       case Token::ID:
-        node_module->body.push_back(ParseDecl());
+        child = ParseDecl();
         break;
       case Token::ID_CONSTANT:
-        node_module->body.push_back(ParseConstantDecl());
+        child = ParseConstantDecl();
         break;
       default:
         // TODO(acomminos): throw error
         return node_module;
     }
+    child->parent = node_module.get();
+    node_module->body.push_back(std::move(child));
   }
   node_module->end = location();
   return std::move(node_module);
@@ -102,10 +105,12 @@ ast::NodePtr Parser::ParseGuard() {
     } else {
       cond_expr = ParseExpr();
     }
+    cond_expr->parent = guard_node.get();
 
     expect_next(Token::COLON);
 
     auto value_expr = ParseExpr();
+    value_expr->parent = guard_node.get();
 
     guard_node->cases.push_back(
         {std::move(cond_expr), std::move(value_expr)}
@@ -134,6 +139,7 @@ ast::NodePtr Parser::ParseInvoke() {
 
   while (ts_.PeekType() != Token::BRACE_END) {
     auto expr = ParseExpr();
+    expr->parent = invoke_node.get();
     invoke_node->args.push_back(std::move(expr));
 
     if (!ts_.CheckNext(Token::COMMA)) {

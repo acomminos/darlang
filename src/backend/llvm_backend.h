@@ -23,7 +23,7 @@ class LLVMModuleTransformer : public ast::Visitor {
   // llvm::Module. Returns nullptr on failure.
   static std::unique_ptr<llvm::Module> Transform(llvm::LLVMContext& context, ast::Node& node);
 
-  void Module(ast::ModuleNode& node) override;
+  bool Module(ast::ModuleNode& node) override;
  private:
   LLVMModuleTransformer(llvm::LLVMContext& context) : context_(context) {}
 
@@ -40,8 +40,8 @@ class LLVMDeclarationTransformer : public ast::Visitor {
   FunctionTable& func_table() { return func_table_; }
 
  private:
-  void Declaration(ast::DeclarationNode& node) override;
-  void Constant(ast::ConstantNode& node) override;
+  bool Declaration(ast::DeclarationNode& node) override;
+  bool Constant(ast::ConstantNode& node) override;
 
   llvm::LLVMContext& context_;
   llvm::Module* module_;
@@ -57,7 +57,7 @@ class LLVMFunctionTransformer : public ast::Visitor {
     : context_(context), module_(module), func_table_(func_table) {}
 
  private:
-  void Declaration(ast::DeclarationNode& node) override;
+  bool Declaration(ast::DeclarationNode& node) override;
 
   llvm::LLVMContext& context_;
   llvm::Module* module_;
@@ -74,11 +74,11 @@ class LLVMValueTransformer : public ast::Visitor {
                                 FunctionTable& funcs,
                                 ArgumentSymbolTable& symbols);
 
-  void IdExpression(ast::IdExpressionNode& node) override;
-  void IntegralLiteral(ast::IntegralLiteralNode& node) override;
-  void BooleanLiteral(ast::BooleanLiteralNode& node);
-  void Invocation(ast::InvocationNode& node) override;
-  void Guard(ast::GuardNode& node) override;
+  bool IdExpression(ast::IdExpressionNode& node) override;
+  bool IntegralLiteral(ast::IntegralLiteralNode& node) override;
+  bool BooleanLiteral(ast::BooleanLiteralNode& node);
+  bool Invocation(ast::InvocationNode& node) override;
+  bool Guard(ast::GuardNode& node) override;
 
   llvm::Value* value() { return value_; }
 

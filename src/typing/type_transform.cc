@@ -5,35 +5,50 @@
 namespace darlang {
 namespace typing {
 
-void TypeTransform::Module(ast::ModuleNode& node) {
+bool TypeTransform::Module(ast::ModuleNode& node) {
   TypeableMap global_scope;
   for (auto& child : node.body) {
     DeclarationTypeTransform decl_transform(global_scope);
     child->Visit(decl_transform);
   }
   set_result(global_scope);
+  return false;
 }
 
-void DeclarationTypeTransform::Declaration(ast::DeclarationNode& node) {
+bool DeclarationTypeTransform::Declaration(ast::DeclarationNode& node) {
   auto func_typeable = std::make_unique<Typeable>();
   // TODO: transfer ownership of func_typeable to definition
   global_scope_.Assign(node.id, func_typeable.get());
 
   TypeableMap func_scope(&global_scope_);
-  auto& args = func_typeable->Arguments(
+  auto& args = func_typeable->Solver()->Arguments(node.args.size());
 
   auto expr_typeable = ExpressionTypeTransform(func_scope).Reduce(*node.expr);
+  if (!expr_typeable) {
+    return false;
+  }
+
   assert(expr_typeable);
-  assert(func_typeable.Yields()->Unify(expr_typeable));
+  assert(func_typeable->Solver()->Yields()->Unify(*expr_typeable));
+  return false;
 }
 
-void ExpressionTypeTransform::Invocation(ast::InvocationNode& node) {
+bool ExpressionTypeTransform::IdExpression(ast::IdExpressionNode& node) {
+  // TODO: associate typeable with the node.
+  auto id_typeable = std::make_unique<Typeable>();
+  return false;
 }
 
-void ExpressionTypeTransform::Guard(ast::GuardNode& node) {
+bool ExpressionTypeTransform::Invocation(ast::InvocationNode& node) {
+  // TODO(acomminos)
+  return false;
+}
+
+bool ExpressionTypeTransform::Guard(ast::GuardNode& node) {
   auto guard_typeable = std::make_unique<Typeable>();
   for (auto& guard_case : node.cases) {
   }
+  return false;
 }
 
 }  // namespace typing

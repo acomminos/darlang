@@ -15,7 +15,7 @@ typedef util::ScopedMap<std::string, Typeable*> TypeableMap;
 
 // Traverses the given AST node, solving for a valid type assignment.
 class TypeTransform : public ast::Reducer<TypeableMap> {
-  void Module(ast::ModuleNode& node) override;
+  bool Module(ast::ModuleNode& node) override;
 };
 
 // Computes typeable constraints from a declaration.
@@ -26,7 +26,7 @@ class DeclarationTypeTransform : public ast::Visitor {
   DeclarationTypeTransform(TypeableMap& globals)
     : global_scope_(globals) {}
 
-  void Declaration(ast::DeclarationNode& node) override;
+  bool Declaration(ast::DeclarationNode& node) override;
 
  private:
   TypeableMap& global_scope_;
@@ -39,8 +39,9 @@ class ExpressionTypeTransform : public ast::Reducer<std::unique_ptr<Typeable>> {
     : scope_(scope), result_(nullptr) {}
 
  private:
-  void Invocation(ast::InvocationNode& node) override;
-  void Guard(ast::GuardNode& node) override;
+  bool IdExpression(ast::IdExpressionNode& node) override;
+  bool Invocation(ast::InvocationNode& node) override;
+  bool Guard(ast::GuardNode& node) override;
 
   const TypeableMap& scope_;
   std::unique_ptr<Typeable> result_;

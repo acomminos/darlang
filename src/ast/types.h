@@ -20,16 +20,19 @@ struct GuardNode;
 
 typedef std::unique_ptr<Node> NodePtr;
 
+// A typical AST visitor, allowing easy traversal.
+// If an implementation method returns true, the node is permitted to recurse
+// into its children and invoke the visitor recursively.
 struct Visitor {
-  virtual void Module(ModuleNode& node) {}
-  virtual void Declaration(DeclarationNode& node) {}
-  virtual void Constant(ConstantNode& node) {}
-  virtual void IdExpression(IdExpressionNode& node) {}
-  virtual void IntegralLiteral(IntegralLiteralNode& node) {}
-  virtual void StringLiteral(StringLiteralNode& node) {}
-  virtual void BooleanLiteral(BooleanLiteralNode& node) {}
-  virtual void Invocation(InvocationNode& node) {}
-  virtual void Guard(GuardNode& node) {}
+  virtual bool Module(ModuleNode& node) {}
+  virtual bool Declaration(DeclarationNode& node) {}
+  virtual bool Constant(ConstantNode& node) {}
+  virtual bool IdExpression(IdExpressionNode& node) {}
+  virtual bool IntegralLiteral(IntegralLiteralNode& node) {}
+  virtual bool StringLiteral(StringLiteralNode& node) {}
+  virtual bool BooleanLiteral(BooleanLiteralNode& node) {}
+  virtual bool Invocation(InvocationNode& node) {}
+  virtual bool Guard(GuardNode& node) {}
 };
 
 struct Location {
@@ -42,6 +45,8 @@ struct Node {
   // Invokes the visitor on this node, and all child nodes.
   virtual void Visit(Visitor& visitor) = 0;
 
+  // An (optional) pointer to the node's parent.
+  Node* parent;
   // Beginning of the range (inclusive) that this node was parsed from.
   Location start;
   // End of the range (inclusive) that this node was parsed from.
@@ -50,7 +55,12 @@ struct Node {
 
 struct ModuleNode : public Node {
   void Visit(Visitor& visitor) override {
-    visitor.Module(*this);
+    bool recurse = visitor.Module(*this);
+    if (recurse) {
+      for (auto& body_elem : body) {
+        body_elem->Visit(visitor);
+      }
+    }
   }
 
   std::string name;
@@ -58,10 +68,16 @@ struct ModuleNode : public Node {
 };
 
 struct DeclarationNode : public Node {
-  DeclarationNode(std::string id, std::vector<std::string> args, std::unique_ptr<Node> expr) : id(id), args(args), expr(std::move(expr)) {}
+  DeclarationNode(std::string id, std::vector<std::string> args, std::unique_ptr<Node> expr)
+    : id(id), args(args), expr(std::move(expr)) {
+    this->expr->parent = this;
+  }
 
   void Visit(Visitor& visitor) override {
-    visitor.Declaration(*this);
+    bool recurse = visitor.Declaration(*this);
+    if (recurse && expr) {
+      expr->Visit(visitor);
+    }
   }
 
   std::string id;
@@ -80,7 +96,9 @@ struct IdExpressionNode : public Node {
 };
 
 struct ConstantNode : public Node {
-  ConstantNode(std::string id, std::unique_ptr<Node> expr) : id(id), expr(std::move(expr)) {}
+  ConstantNode(std::string id, std::unique_ptr<Node> expr) : id(id), expr(std::move(expr)) {
+    this->expr->parent = this;
+  }
 
   void Visit(Visitor& visitor) override {
     visitor.Constant(*this);
@@ -118,7 +136,12 @@ struct BooleanLiteralNode : public Node {
 
 struct InvocationNode : public Node {
   void Visit(Visitor& visitor) override {
-    visitor.Invocation(*this);
+    bool recurse = visitor.Invocation(*this);
+    if (recurse) {
+      for (auto& arg_elem : args) {
+        arg_elem->Visit(visitor);
+      }
+    }
   }
 
   std::string callee;
@@ -127,7 +150,15 @@ struct InvocationNode : public Node {
 
 struct GuardNode : public Node {
   void Visit(Visitor& visitor) override {
-    visitor.Guard(*this);
+    bool recurse = visitor.Guard(*this);
+    if (recurse) {
+      for (auto& case_elem : cases) {
+        // TODO(acomminos): add new AST node that models relationship between
+        //                  condition and expressions
+        case_elem.first->Visit(visitor);
+        case_elem.second->Visit(visitor);
+      }
+    }
   }
 
   // (condition, value) expression tuples.

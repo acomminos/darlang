@@ -12,7 +12,7 @@ class PrettyPrinter : public Visitor {
  public:
   PrettyPrinter() : depth_(0) {}
 
-  void Module(ModuleNode& node) override {
+  bool Module(ModuleNode& node) override {
     pp("Module") << std::endl;
 
     depth_++;
@@ -20,9 +20,10 @@ class PrettyPrinter : public Visitor {
       child->Visit(*this);
     }
     depth_--;
+    return false;
   }
 
-  void Declaration(DeclarationNode& node) override {
+  bool Declaration(DeclarationNode& node) override {
     std::stringstream args;
     args << "{";
     for (int i = 0; i < node.args.size(); i++) {
@@ -43,25 +44,36 @@ class PrettyPrinter : public Visitor {
     depth_++;
     node.expr->Visit(*this);
     depth_--;
+    return false;
   }
 
-  void Constant(ConstantNode& node) override {}
-  void IdExpression(IdExpressionNode& node) override {
+  bool Constant(ConstantNode& node) override {
+    return false;
+  }
+
+  bool IdExpression(IdExpressionNode& node) override {
     pp("IdExpression") << " ["
       << "id='" << node.id << "'"
       << "]" << std::endl;
+    return false;
   }
 
-  void IntegralLiteral(IntegralLiteralNode& node) override {
+  bool IntegralLiteral(IntegralLiteralNode& node) override {
     pp("IntegralLiteral") << " ["
       << "literal='" << node.literal << "'"
       << "]" << std::endl;
+    return false;
   }
 
-  void StringLiteral(StringLiteralNode& node) override {}
-  void BooleanLiteral(BooleanLiteralNode& node) override {}
+  bool StringLiteral(StringLiteralNode& node) override {
+    return false; // TODO
+  }
 
-  void Invocation(InvocationNode& node) override {
+  bool BooleanLiteral(BooleanLiteralNode& node) override {
+    return false; // TODO
+  }
+
+  bool Invocation(InvocationNode& node) override {
     pp("Invocation") << " ["
       << "callee='" << node.callee << "'"
       << "]" << std::endl;
@@ -73,8 +85,10 @@ class PrettyPrinter : public Visitor {
       child->Visit(*this);
     }
     depth_--;
+    return false;
   }
-  void Guard(GuardNode& node) override {
+
+  bool Guard(GuardNode& node) override {
     pp("Guard") << std::endl;
 
     // TODO(acomminos): attrs
@@ -85,6 +99,7 @@ class PrettyPrinter : public Visitor {
       child.second->Visit(*this);
     }
     depth_--;
+    return false;
   }
 
  private:

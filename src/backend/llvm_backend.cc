@@ -11,7 +11,7 @@ std::unique_ptr<llvm::Module> LLVMModuleTransformer::Transform(llvm::LLVMContext
   return std::move(transformer.module_);
 }
 
-void LLVMModuleTransformer::Module(ast::ModuleNode& node) {
+bool LLVMModuleTransformer::Module(ast::ModuleNode& node) {
   module_ = llvm::make_unique<llvm::Module>(node.name, context_);
 
   // Perform an initial pass to populate function declarations.
@@ -26,9 +26,10 @@ void LLVMModuleTransformer::Module(ast::ModuleNode& node) {
   for (auto& child : node.body) {
     child->Visit(func_transform);
   }
+  return false;
 }
 
-void LLVMDeclarationTransformer::Declaration(ast::DeclarationNode& node) {
+bool LLVMDeclarationTransformer::Declaration(ast::DeclarationNode& node) {
   // TODO(acomminos): implement type system
   std::vector<llvm::Type*> arg_types(node.args.size(),
                                      llvm::Type::getInt64Ty(context_));
@@ -37,13 +38,15 @@ void LLVMDeclarationTransformer::Declaration(ast::DeclarationNode& node) {
   auto func = llvm::Function::Create(func_type, llvm::Function::ExternalLinkage, node.id, module_);
   // TODO(acomminos): check for duplicates
   func_table_[node.id] = func;
+  return false;
 }
 
-void LLVMDeclarationTransformer::Constant(ast::ConstantNode& node) {
+bool LLVMDeclarationTransformer::Constant(ast::ConstantNode& node) {
   // TODO(acomminos)
+  return false;
 }
 
-void LLVMFunctionTransformer::Declaration(ast::DeclarationNode& node) {
+bool LLVMFunctionTransformer::Declaration(ast::DeclarationNode& node) {
   auto func = func_table_[node.id];
   auto entry_block = llvm::BasicBlock::Create(context_, "entry", func);
 
@@ -58,6 +61,7 @@ void LLVMFunctionTransformer::Declaration(ast::DeclarationNode& node) {
 
   auto expr = LLVMValueTransformer::Transform(context_, builder, *node.expr, func_table_, arg_symbols);
   builder.CreateRet(expr);
+  return false;
 }
 
 /* static */
@@ -71,21 +75,24 @@ llvm::Value* LLVMValueTransformer::Transform(llvm::LLVMContext& context,
   return transformer.value();
 }
 
-void LLVMValueTransformer::IdExpression(ast::IdExpressionNode& node) {
+bool LLVMValueTransformer::IdExpression(ast::IdExpressionNode& node) {
   value_ = symbols_[node.id];
   assert(value_ != nullptr);
+  return false;
 }
 
-void LLVMValueTransformer::IntegralLiteral(ast::IntegralLiteralNode& node) {
+bool LLVMValueTransformer::IntegralLiteral(ast::IntegralLiteralNode& node) {
   // TODO(acomminos): support multiple precision ints
   value_ = llvm::ConstantInt::get(llvm::Type::getInt64Ty(context_), node.literal);
+  return false;
 }
 
-void LLVMValueTransformer::BooleanLiteral(ast::BooleanLiteralNode& node) {
+bool LLVMValueTransformer::BooleanLiteral(ast::BooleanLiteralNode& node) {
   value_ = llvm::ConstantInt::get(llvm::Type::getInt1Ty(context_), node.literal);
+  return false;
 }
 
-void LLVMValueTransformer::Invocation(ast::InvocationNode& node) {
+bool LLVMValueTransformer::Invocation(ast::InvocationNode& node) {
   std::vector<llvm::Value*> arg_values;
   for (auto& expr : node.args) {
     auto value = LLVMValueTransformer::Transform(context_, builder_, *expr, funcs_, symbols_);
@@ -101,9 +108,10 @@ void LLVMValueTransformer::Invocation(ast::InvocationNode& node) {
 
     value_ = builder_.CreateCall(callee, arg_values);
   }
+  return false;
 }
 
-void LLVMValueTransformer::Guard(ast::GuardNode& node) {
+bool LLVMValueTransformer::Guard(ast::GuardNode& node) {
   // Get the current function we're within.
   auto parent_func = builder_.GetInsertBlock()->getParent();
 
@@ -141,6 +149,7 @@ void LLVMValueTransformer::Guard(ast::GuardNode& node) {
   builder_.SetInsertPoint(terminal_block);
 
   value_ = phi_node;
+  return false;
 }
 
 }  // namespace backend
