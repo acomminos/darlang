@@ -98,27 +98,38 @@ ast::NodePtr Parser::ParseGuard() {
   auto guard_node = std::make_unique<ast::GuardNode>();
 
   while (ts_.PeekType() != Token::BLOCK_END) {
-    ast::NodePtr cond_expr;
+    bool wildcard = false;
+    ast::NodePtr cond_expr = nullptr;
     if (ts_.CheckNext(Token::WILDCARD)) {
-      // Special case wildcards as universally true.
-      cond_expr = std::make_unique<ast::BooleanLiteralNode>(true);
+      wildcard = true;
     } else {
       cond_expr = ParseExpr();
+      cond_expr->parent = guard_node.get();
     }
-    cond_expr->parent = guard_node.get();
 
     expect_next(Token::COLON);
 
     auto value_expr = ParseExpr();
     value_expr->parent = guard_node.get();
 
-    guard_node->cases.push_back(
-        {std::move(cond_expr), std::move(value_expr)}
-    );
+    if (wildcard) {
+      if (guard_node->wildcard_case) {
+        log_.Fatal("multiple wildcard cases specified", ts_.file(), ts_.line(), ts_.column());
+      }
+      guard_node->wildcard_case = std::move(value_expr);
+    } else {
+      guard_node->cases.push_back(
+          {std::move(cond_expr), std::move(value_expr)}
+      );
+    }
 
     if (!ts_.CheckNext(Token::BREAK)) {
       break;
     }
+  }
+
+  if (!guard_node->wildcard_case) {
+    log_.Fatal("no wildcard case specified", ts_.file(), ts_.line(), ts_.column());
   }
 
   // Allow optional trailing break.

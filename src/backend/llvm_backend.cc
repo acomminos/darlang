@@ -115,23 +115,25 @@ bool LLVMValueTransformer::Guard(ast::GuardNode& node) {
   // Get the current function we're within.
   auto parent_func = builder_.GetInsertBlock()->getParent();
 
-  // Block containing branches to various case blocks.
+  // Current block containing branching to various case blocks.
   auto prelude_block = builder_.GetInsertBlock();
+  // Wildcard case for when no pattern matches.
+  auto wildcard_block = llvm::BasicBlock::Create(context_, "wildcard");
   // Combinator block joining cases.
-  auto terminal_block = llvm::BasicBlock::Create(context_);
+  auto terminal_block = llvm::BasicBlock::Create(context_, "terminal");
 
   // Insert a phi node as the first instruction in the terminal block.
   builder_.SetInsertPoint(terminal_block);
   // TODO: implement type system
-  auto phi_node = builder_.CreatePHI(llvm::Type::getInt64Ty(context_), node.cases.size());
+  auto phi_node = builder_.CreatePHI(llvm::Type::getInt64Ty(context_),
+                                     1 + node.cases.size());
 
-  for (auto& guard_case : node.cases) {
-    auto case_block = llvm::BasicBlock::Create(context_);
+  // Must have at least one case in order to terminate the prelude block.
+  assert(node.cases.size() > 0);
 
-    // Add a conditional check to the prelude to jump to this case.
-    builder_.SetInsertPoint(prelude_block);
-    auto cond_value = LLVMValueTransformer::Transform(context_, builder_, *guard_case.first, funcs_, symbols_);
-    auto branch = builder_.CreateCondBr(cond_value, case_block, nullptr);
+  for (int i = 0; i < node.cases.size(); i++) {
+    auto& guard_case = node.cases[i];
+    auto case_block = llvm::BasicBlock::Create(context_, "case");
 
     // Compute the expression value in the case block and branch to the terminator.
     builder_.SetInsertPoint(case_block);
@@ -140,7 +142,29 @@ bool LLVMValueTransformer::Guard(ast::GuardNode& node) {
     builder_.CreateBr(terminal_block);
 
     parent_func->getBasicBlockList().push_back(case_block);
+
+    // Add a conditional check to the prelude to jump to this case.
+    builder_.SetInsertPoint(prelude_block);
+    auto cond_value = LLVMValueTransformer::Transform(context_, builder_, *guard_case.first, funcs_, symbols_);
+    if (i < node.cases.size() - 1) {
+      // Create and branch to the next possible case if this case's check fails.
+      // All blocks' terminators must have a defined control flow.
+      auto next_prelude = llvm::BasicBlock::Create(context_, "check");
+      builder_.CreateCondBr(cond_value, case_block, next_prelude);
+      parent_func->getBasicBlockList().push_back(next_prelude);
+      prelude_block = next_prelude;
+    } else {
+      // When we reach the last case, branch to the wildcard case.
+      builder_.CreateCondBr(cond_value, case_block, wildcard_block);
+    }
   }
+
+  // Generate the wildcard (else) block.
+  builder_.SetInsertPoint(wildcard_block);
+  auto wildcard_value = LLVMValueTransformer::Transform(context_, builder_, *node.wildcard_case, funcs_, symbols_);
+  phi_node->addIncoming(wildcard_value, wildcard_block);
+  builder_.CreateBr(terminal_block);
+  parent_func->getBasicBlockList().push_back(wildcard_block);
 
   parent_func->getBasicBlockList().push_back(terminal_block);
 

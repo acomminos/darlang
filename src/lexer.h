@@ -68,7 +68,7 @@ class Lexer {
   }
 
   void error(const std::string msg) {
-    log_.Fatal(msg, line_, column_);
+    log_.Fatal(msg, file_, line_, column_);
   }
 
   void expect_next(char c) {

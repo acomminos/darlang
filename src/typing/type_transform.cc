@@ -7,6 +7,8 @@ namespace typing {
 
 bool TypeTransform::Module(ast::ModuleNode& node) {
   TypeableMap global_scope;
+  // TODO(acomminos): break this into a spearate pass so we toplevel functions
+  //                  can mutually reference each other
   for (auto& child : node.body) {
     DeclarationTypeTransform decl_transform(global_scope);
     child->Visit(decl_transform);

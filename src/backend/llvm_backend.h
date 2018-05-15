@@ -66,6 +66,10 @@ class LLVMFunctionTransformer : public ast::Visitor {
 
 // Transforms AST nodes representing an expression into a llvm::Value* within
 // the block targeted by the provided IRBuilder.
+//
+// Each visitor method is expected to produce instructions in one basic block,
+// and leave the IRBuilder tracking a single open-ended basic block through
+// which all control flow must route through.
 class LLVMValueTransformer : public ast::Visitor {
  public:
   static llvm::Value* Transform(llvm::LLVMContext& context,

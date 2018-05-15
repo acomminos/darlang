@@ -98,6 +98,7 @@ class PrettyPrinter : public Visitor {
       child.first->Visit(*this);
       child.second->Visit(*this);
     }
+    node.wildcard_case->Visit(*this);
     depth_--;
     return false;
   }

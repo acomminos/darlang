@@ -158,11 +158,14 @@ struct GuardNode : public Node {
         case_elem.first->Visit(visitor);
         case_elem.second->Visit(visitor);
       }
+      wildcard_case->Visit(visitor);
     }
   }
 
   // (condition, value) expression tuples.
   std::vector<std::pair<NodePtr, NodePtr>> cases;
+  // Fallthrough case when all other cases fail.
+  NodePtr wildcard_case;
 };
 
 }  // namespace ast

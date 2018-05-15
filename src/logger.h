@@ -10,25 +10,27 @@ class Logger {
  public:
   Logger(std::ostream& os) : os_(os) {}
 
-  void Fatal(const std::string msg, int line, int column) {
-    log("fatality", msg, line, column);
+  void Fatal(const std::string msg, const std::string file, int line, int column) {
+    log("fatality", msg, file, line, column);
     exit(1);
   }
 
-  void Warn(const std::string msg, int line, int column) {
-    log("warning", msg, line, column);
+  void Warn(const std::string msg, const std::string file, int line, int column) {
+    log("warning", msg, file, line, column);
   }
 
  private:
-  void log(const std::string level, const std::string msg, int line, int column) {
+  void log(const std::string level, const std::string msg, const std::string file, int line, int column) {
     os_ << level
-        << " at " << line << ":" << column
+        << " at " << file << ":" << line << ":" << column
         << " | " << msg
         << std::endl;
   }
 
   std::ostream& os_;
 };
+
+static Logger DefaultLogger(std::cerr);
 
 }  // namespace darlang
 

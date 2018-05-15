@@ -35,7 +35,7 @@ class Parser {
      if (tok.type != type) {
        std::stringstream ss;
        ss << "expected token " << Token::TypeNames[type] << ", got " << Token::TypeNames[tok.type];
-       log_.Fatal(ss.str(), ts_.line(), ts_.column());
+       log_.Fatal(ss.str(), ts_.file(), ts_.line(), ts_.column());
      }
      return tok;
    }
