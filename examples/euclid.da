@@ -2,3 +2,5 @@ euclid(a,b) = {
   is(b,0) : a;
         * : euclid(b, mod(a,b));
 }
+
+main() = euclid(20, 15)

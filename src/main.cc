@@ -26,8 +26,8 @@ int main(int argc, char* argv[]) {
     darlang::Parser p(logger, ts);
     auto module = p.ParseModule();
 
-    darlang::ast::PrettyPrinter pp;
-    module->Visit(pp);
+    //darlang::ast::PrettyPrinter pp;
+    //module->Visit(pp);
 
     llvm::LLVMContext llvm_context;
     auto llvm_module = darlang::backend::LLVMModuleTransformer::Transform(llvm_context, *module);
