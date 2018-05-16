@@ -18,6 +18,8 @@ struct BooleanLiteralNode;
 struct InvocationNode;
 struct GuardNode;
 
+class Typeable;
+
 typedef std::unique_ptr<Node> NodePtr;
 
 // A typical AST visitor, allowing easy traversal.

@@ -28,7 +28,7 @@ class Reducer : protected Visitor {
   // valid result.
   void set_result(T val) {
     assert(!set_); // enforce idempotency
-    result_ = val;
+    result_ = std::move(val);
     set_ = true;
   }
 

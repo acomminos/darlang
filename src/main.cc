@@ -6,6 +6,7 @@
 #include "parser.h"
 #include "ast/prettyprinter.h"
 #include "backend/llvm_backend.h"
+#include "typing/type_transform.h"
 
 // XXX(acomminos): just for printing IR
 #include "llvm/Support/raw_ostream.h"
@@ -28,6 +29,9 @@ int main(int argc, char* argv[]) {
 
     //darlang::ast::PrettyPrinter pp;
     //module->Visit(pp);
+
+    darlang::typing::TypeTransform typer;
+    module->Visit(typer);
 
     llvm::LLVMContext llvm_context;
     auto llvm_module = darlang::backend::LLVMModuleTransformer::Transform(llvm_context, *module);

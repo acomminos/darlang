@@ -13,7 +13,6 @@ bool TypeTransform::Module(ast::ModuleNode& node) {
     DeclarationTypeTransform decl_transform(global_scope);
     child->Visit(decl_transform);
   }
-  set_result(global_scope);
   return false;
 }
 
@@ -23,33 +22,62 @@ bool DeclarationTypeTransform::Declaration(ast::DeclarationNode& node) {
   global_scope_.Assign(node.id, func_typeable.get());
 
   TypeableMap func_scope(&global_scope_);
-  auto& args = func_typeable->Solver()->Arguments(node.args.size());
 
-  auto expr_typeable = ExpressionTypeTransform(func_scope).Reduce(*node.expr);
-  if (!expr_typeable) {
+  if (!func_typeable->Solver()->Arguments(node.args.size(), nullptr)) {
+    assert(false); // FIXME(acomminos)
     return false;
   }
 
-  assert(expr_typeable);
-  assert(func_typeable->Solver()->Yields()->Unify(*expr_typeable));
+  auto expr_typeable = ExpressionTypeTransform(func_scope).Reduce(*node.expr);
+
+  auto return_typeable = func_typeable->Solver()->Yields();
+  if (!return_typeable->Unify(*expr_typeable)) {
+    assert(false); // FIXME(acomminos)
+    return false;
+  }
+
   return false;
 }
 
 bool ExpressionTypeTransform::IdExpression(ast::IdExpressionNode& node) {
-  // TODO: associate typeable with the node.
   auto id_typeable = std::make_unique<Typeable>();
+  // TODO(acomminos): add to scope?
+  set_result(std::move(id_typeable));
+  return false;
+}
+
+bool ExpressionTypeTransform::IntegralLiteral(ast::IntegralLiteralNode& node) {
+  auto int_typeable = std::make_unique<Typeable>();
+  int_typeable->Solver()->Primitive(PrimitiveType::Int64);
+  set_result(std::move(int_typeable));
   return false;
 }
 
 bool ExpressionTypeTransform::Invocation(ast::InvocationNode& node) {
+  auto call_typeable = std::make_unique<Typeable>();
   // TODO(acomminos)
+  set_result(std::move(call_typeable));
   return false;
 }
 
 bool ExpressionTypeTransform::Guard(ast::GuardNode& node) {
   auto guard_typeable = std::make_unique<Typeable>();
   for (auto& guard_case : node.cases) {
+    auto case_typeable = ExpressionTypeTransform(scope_).Reduce(*guard_case.second);
+    if (!guard_typeable->Unify(*case_typeable)) {
+      // TODO(acomminos)
+      assert(false); // FIXME(acomminos)
+      return false;
+    }
   }
+  auto wildcard_typeable = ExpressionTypeTransform(scope_).Reduce(*node.wildcard_case);
+  if (!guard_typeable->Unify(*wildcard_typeable)) {
+    // TODO(acomminos)
+    assert(false); // FIXME(acomminos)
+    return false;
+  }
+
+  set_result(std::move(guard_typeable));
   return false;
 }
 

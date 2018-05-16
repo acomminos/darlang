@@ -4,6 +4,7 @@
 #include <cassert>
 #include <memory>
 #include <vector>
+#include "errors.h"
 #include "types.h"
 
 namespace darlang {
@@ -19,7 +20,7 @@ class Typeable {
   // Instantiates a new unbound typeable.
   Typeable();
   // Unifies a typeable into this typeable, intersecting their type solvers.
-  bool Unify(Typeable& other);
+  Result Unify(Typeable& other);
   // Obtains the TypeSolver determining this Typeable.
   TypeSolver* Solver();
  private:
@@ -43,19 +44,20 @@ class TypeSolver {
 
   // Merges constraints from the given solver into this solver.
   // Returns false if unification failed.
-  bool Unify(TypeSolver& other);
+  Result Unify(TypeSolver& other);
 
   // Solves this TypeSolver as the given primitive.
   // Returns false if this causes a contradiction.
-  bool Primitive(PrimitiveType primitive);
+  Result Primitive(PrimitiveType primitive);
 
   // Returns a set of `count` arguments associated with the function.
   // If the arguments of this typeable have already been accessed with a
   // different cardinality, raises an error.
   // The typeable is implicitly specialized as a function.
-  std::vector<Typeable>& Arguments(int count);
+  Result Arguments(int count, std::vector<Typeable>** out_args);
 
   // Returns the Typeable of the (implicitly-defined) return value.
+  // TODO(acomminos): switch to return result
   Typeable* Yields();
 
   TypeClass type_class() const { return class_; }

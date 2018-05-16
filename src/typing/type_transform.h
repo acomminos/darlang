@@ -14,7 +14,7 @@ namespace typing {
 typedef util::ScopedMap<std::string, Typeable*> TypeableMap;
 
 // Traverses the given AST node, solving for a valid type assignment.
-class TypeTransform : public ast::Reducer<TypeableMap> {
+class TypeTransform : public ast::Visitor {
   bool Module(ast::ModuleNode& node) override;
 };
 
@@ -36,15 +36,15 @@ class DeclarationTypeTransform : public ast::Visitor {
 class ExpressionTypeTransform : public ast::Reducer<std::unique_ptr<Typeable>> {
  public:
   ExpressionTypeTransform(const TypeableMap& scope)
-    : scope_(scope), result_(nullptr) {}
+    : scope_(scope) {}
 
  private:
   bool IdExpression(ast::IdExpressionNode& node) override;
+  bool IntegralLiteral(ast::IntegralLiteralNode& node) override;
   bool Invocation(ast::InvocationNode& node) override;
   bool Guard(ast::GuardNode& node) override;
 
   const TypeableMap& scope_;
-  std::unique_ptr<Typeable> result_;
 };
 
 }  // namespace typing
