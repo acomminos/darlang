@@ -34,6 +34,20 @@ TypeSolver* Typeable::Solver() {
   return solver_.get();
 }
 
+Result TypeSolver::Solve(TypeRegistry& registry, Type** out_type) {
+  switch (class_) {
+    case TypeClass::UNBOUND:
+      return Result::Error(ErrorCode::TYPE_INDETERMINATE, "type class could not be inferred");
+    case TypeClass::PRIMITIVE:
+      // TODO(acomminos)
+      return Result::Error(ErrorCode::UNIMPLEMENTED);
+    case TypeClass::FUNCTION:
+      // TODO(acomminos)
+      return Result::Error(ErrorCode::UNIMPLEMENTED);
+  }
+  return Result::Error(ErrorCode::UNIMPLEMENTED);
+}
+
 Result TypeSolver::Unify(TypeSolver& other) {
   // Handle a simple rejection where both classes are unbound and differ.
   if (other.type_class() != TypeClass::UNBOUND &&

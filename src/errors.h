@@ -6,8 +6,10 @@ namespace darlang {
 enum class ErrorCode {
   OK = 0,
 
-  // type inference
-  TYPE_INCOMPATIBLE,
+  UNIMPLEMENTED,      // stub for unimplemented methods
+
+  TYPE_INCOMPATIBLE,  // conflicting typeable constraints set
+  TYPE_INDETERMINATE, // insufficient evidence to infer a typeable's class
 };
 
 struct Result {

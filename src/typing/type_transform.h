@@ -5,12 +5,14 @@
 #include <unordered_map>
 #include "ast/types.h"
 #include "ast/util.h"
+#include "typing/registry.h"
 #include "typing/solver.h"
 #include "util/scoped_map.h"
 
 namespace darlang {
 namespace typing {
 
+// Mapping of an identifier to a typeable owned by some AST node.
 typedef util::ScopedMap<std::string, Typeable*> TypeableMap;
 
 // Traverses the given AST node, solving for a valid type assignment.
@@ -35,7 +37,7 @@ class DeclarationTypeTransform : public ast::Visitor {
 // Produces a typeable from the expression represented by the given AST node.
 class ExpressionTypeTransform : public ast::Reducer<std::unique_ptr<Typeable>> {
  public:
-  ExpressionTypeTransform(const TypeableMap& scope)
+  ExpressionTypeTransform(TypeRegistry& registry, const TypeableMap& scope)
     : scope_(scope) {}
 
  private:

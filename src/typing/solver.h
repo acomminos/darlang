@@ -5,7 +5,8 @@
 #include <memory>
 #include <vector>
 #include "errors.h"
-#include "types.h"
+#include "typing/registry.h"
+#include "typing/types.h"
 
 namespace darlang {
 namespace typing {
@@ -41,6 +42,10 @@ enum class TypeClass {
 class TypeSolver {
  public:
   TypeSolver() : class_(TypeClass::UNBOUND), arguments_valid_(false), yields_(nullptr) {}
+
+  // Attempts to solve for a single concrete type from the constraints fed to
+  // this type solver. Stores the generated type in the type registry provided.
+  Result Solve(TypeRegistry& registry, Type** out_type);
 
   // Merges constraints from the given solver into this solver.
   // Returns false if unification failed.
