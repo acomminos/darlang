@@ -34,16 +34,26 @@ TypeSolver* Typeable::Solver() {
   return solver_.get();
 }
 
-Result TypeSolver::Solve(TypeRegistry& registry, Type** out_type) {
+Result TypeSolver::Solve(Type*& out_type) {
+  if (solved_type_) {
+    out_type = solved_type_.get();
+    return Result::Ok();
+  }
+
   switch (class_) {
     case TypeClass::UNBOUND:
       return Result::Error(ErrorCode::TYPE_INDETERMINATE, "type class could not be inferred");
     case TypeClass::PRIMITIVE:
-      // TODO(acomminos)
-      return Result::Error(ErrorCode::UNIMPLEMENTED);
+      solved_type_ = std::make_unique<Primitive>(primitive_);
+      out_type = solved_type_.get();
+      return Result::Ok();
     case TypeClass::FUNCTION:
-      // TODO(acomminos)
+    {
+      if (!arguments_valid_) {
+        return Result::Error(ErrorCode::TYPE_INDETERMINATE, "arguments unbound");
+      }
       return Result::Error(ErrorCode::UNIMPLEMENTED);
+    }
   }
   return Result::Error(ErrorCode::UNIMPLEMENTED);
 }
@@ -63,7 +73,7 @@ Result TypeSolver::Unify(TypeSolver& other) {
     auto& other_arguments = other.arguments();
     if (!arguments_valid()) {
       // Create typeables for this function's arguments if invalid.
-      Arguments(other_arguments.size(), nullptr);
+      ConstrainArguments(other_arguments.size(), nullptr);
     }
 
     if (arguments_.size() != other_arguments.size()) {
@@ -82,8 +92,8 @@ Result TypeSolver::Unify(TypeSolver& other) {
 
   // Unify against the yielded value of the function being unified.
   if (other.has_yields()) {
-    auto yields = Yields(); // Implicitly creates yield value.
-    bool result = yields->Unify(*other.Yields());
+    auto yields = ConstrainYields(); // Implicitly creates yield value.
+    bool result = yields->Unify(*other.ConstrainYields());
     if (!result) {
       return Result::Error(ErrorCode::TYPE_INCOMPATIBLE, "return value failed to unify");
     }
@@ -97,14 +107,14 @@ Result TypeSolver::Unify(TypeSolver& other) {
   return Result::Ok();
 }
 
-Result TypeSolver::Primitive(PrimitiveType primitive) {
+Result TypeSolver::ConstrainPrimitive(PrimitiveType primitive) {
   classify(TypeClass::PRIMITIVE);
   primitive_ = primitive;
   return Result::Ok();
 }
 
 
-Result TypeSolver::Arguments(int count, std::vector<Typeable>** out_args) {
+Result TypeSolver::ConstrainArguments(int count, std::vector<Typeable>** out_args) {
   classify(TypeClass::FUNCTION);
 
   if (!arguments_valid_) {
@@ -125,7 +135,7 @@ Result TypeSolver::Arguments(int count, std::vector<Typeable>** out_args) {
   return Result::Ok();
 }
 
-Typeable* TypeSolver::Yields() {
+Typeable* TypeSolver::ConstrainYields() {
   classify(TypeClass::FUNCTION);
 
   if (!yields_) {

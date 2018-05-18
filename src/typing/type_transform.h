@@ -5,7 +5,6 @@
 #include <unordered_map>
 #include "ast/types.h"
 #include "ast/util.h"
-#include "typing/registry.h"
 #include "typing/solver.h"
 #include "util/scoped_map.h"
 
@@ -37,7 +36,7 @@ class DeclarationTypeTransform : public ast::Visitor {
 // Produces a typeable from the expression represented by the given AST node.
 class ExpressionTypeTransform : public ast::Reducer<std::unique_ptr<Typeable>> {
  public:
-  ExpressionTypeTransform(TypeRegistry& registry, const TypeableMap& scope)
+  ExpressionTypeTransform(const TypeableMap& scope)
     : scope_(scope) {}
 
  private:

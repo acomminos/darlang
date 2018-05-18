@@ -23,14 +23,14 @@ bool DeclarationTypeTransform::Declaration(ast::DeclarationNode& node) {
 
   TypeableMap func_scope(&global_scope_);
 
-  if (!func_typeable->Solver()->Arguments(node.args.size(), nullptr)) {
+  if (!func_typeable->Solver()->ConstrainArguments(node.args.size(), nullptr)) {
     assert(false); // FIXME(acomminos)
     return false;
   }
 
   auto expr_typeable = ExpressionTypeTransform(func_scope).Reduce(*node.expr);
 
-  auto return_typeable = func_typeable->Solver()->Yields();
+  auto return_typeable = func_typeable->Solver()->ConstrainYields();
   if (!return_typeable->Unify(*expr_typeable)) {
     assert(false); // FIXME(acomminos)
     return false;
@@ -48,7 +48,7 @@ bool ExpressionTypeTransform::IdExpression(ast::IdExpressionNode& node) {
 
 bool ExpressionTypeTransform::IntegralLiteral(ast::IntegralLiteralNode& node) {
   auto int_typeable = std::make_unique<Typeable>();
-  int_typeable->Solver()->Primitive(PrimitiveType::Int64);
+  int_typeable->Solver()->ConstrainPrimitive(PrimitiveType::Int64);
   set_result(std::move(int_typeable));
   return false;
 }

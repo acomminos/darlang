@@ -5,7 +5,6 @@
 #include <memory>
 #include <vector>
 #include "errors.h"
-#include "typing/registry.h"
 #include "typing/types.h"
 
 namespace darlang {
@@ -44,8 +43,11 @@ class TypeSolver {
   TypeSolver() : class_(TypeClass::UNBOUND), arguments_valid_(false), yields_(nullptr) {}
 
   // Attempts to solve for a single concrete type from the constraints fed to
-  // this type solver. Stores the generated type in the type registry provided.
-  Result Solve(TypeRegistry& registry, Type** out_type);
+  // this type solver.
+  //
+  // The returned type is owned by this typeable, and is invalid after this
+  // typeable is freed.
+  Result Solve(Type*& out_type);
 
   // Merges constraints from the given solver into this solver.
   // Returns false if unification failed.
@@ -53,17 +55,17 @@ class TypeSolver {
 
   // Solves this TypeSolver as the given primitive.
   // Returns false if this causes a contradiction.
-  Result Primitive(PrimitiveType primitive);
+  Result ConstrainPrimitive(PrimitiveType primitive);
 
   // Returns a set of `count` arguments associated with the function.
   // If the arguments of this typeable have already been accessed with a
   // different cardinality, raises an error.
   // The typeable is implicitly specialized as a function.
-  Result Arguments(int count, std::vector<Typeable>** out_args);
+  Result ConstrainArguments(int count, std::vector<Typeable>** out_args);
 
   // Returns the Typeable of the (implicitly-defined) return value.
   // TODO(acomminos): switch to return result
-  Typeable* Yields();
+  Typeable* ConstrainYields();
 
   TypeClass type_class() const { return class_; }
   bool arguments_valid() const { return arguments_valid_; }
@@ -85,6 +87,7 @@ class TypeSolver {
     return arguments_;
   }
 
+  std::unique_ptr<Type> solved_type_; // set after a successful Solve() call
   TypeClass class_;
 
   PrimitiveType primitive_;
