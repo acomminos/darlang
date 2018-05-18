@@ -65,7 +65,6 @@ bool ExpressionTypeTransform::Guard(ast::GuardNode& node) {
   for (auto& guard_case : node.cases) {
     auto case_typeable = ExpressionTypeTransform(scope_).Reduce(*guard_case.second);
     if (!guard_typeable->Unify(*case_typeable)) {
-      // TODO(acomminos)
       assert(false); // FIXME(acomminos)
       return false;
     }

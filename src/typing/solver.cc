@@ -49,10 +49,32 @@ Result TypeSolver::Solve(Type*& out_type) {
       return Result::Ok();
     case TypeClass::FUNCTION:
     {
+      // TODO(acomminos): move this out
       if (!arguments_valid_) {
         return Result::Error(ErrorCode::TYPE_INDETERMINATE, "arguments unbound");
       }
-      return Result::Error(ErrorCode::UNIMPLEMENTED);
+      std::vector<Type*> arg_types(arguments_.size());
+      for (int i = 0; i < arguments_.size(); i++) {
+        auto arg_result = arguments_[i].Solver()->Solve(arg_types[i]);
+        if (!arg_result) {
+          // TODO(acomminos): nest result
+          return arg_result;
+        }
+      }
+
+      if (!yields_) {
+        return Result::Error(ErrorCode::TYPE_INDETERMINATE, "yield type unbound");
+      }
+      Type* yield_type;
+      auto yield_result = yields_->Solver()->Solve(yield_type);
+      if (!yield_result) {
+        // TODO(acomminos): nest result
+        return yield_result;
+      }
+
+      solved_type_ = std::make_unique<Function>(arg_types, yield_type);
+      out_type = solved_type_.get();
+      return Result::Ok();
     }
   }
   return Result::Error(ErrorCode::UNIMPLEMENTED);
