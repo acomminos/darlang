@@ -41,10 +41,22 @@ struct Location {
   int column;
 };
 
+typedef int64_t NodeID;
+
 struct Node {
   // Invokes the visitor on this node, and all child nodes.
   virtual void Visit(Visitor& visitor) = 0;
 
+  Node() {
+    // TODO(acomminos): make atomic
+    //                  define move/copy semantics?
+    static NodeID counter = 0;
+    id = counter++;
+  }
+
+  // A unique identifier for the node, to be used when storing pass-specific
+  // annotations.
+  NodeID id;
   // An (optional) pointer to the node's parent.
   Node* parent;
   // Beginning of the range (inclusive) that this node was parsed from.
@@ -68,8 +80,8 @@ struct ModuleNode : public Node {
 };
 
 struct DeclarationNode : public Node {
-  DeclarationNode(std::string id, std::vector<std::string> args, std::unique_ptr<Node> expr)
-    : id(id), args(args), expr(std::move(expr)) {
+  DeclarationNode(std::string name, std::vector<std::string> args, std::unique_ptr<Node> expr)
+    : name(name), args(args), expr(std::move(expr)) {
     this->expr->parent = this;
   }
 
@@ -80,23 +92,23 @@ struct DeclarationNode : public Node {
     }
   }
 
-  std::string id;
+  std::string name;
   std::vector<std::string> args;
   std::unique_ptr<Node> expr;
 };
 
 struct IdExpressionNode : public Node {
-  IdExpressionNode(std::string id) : id(id) {}
+  IdExpressionNode(std::string name) : name(name) {}
 
   void Visit(Visitor& visitor) override {
     visitor.IdExpression(*this);
   }
 
-  std::string id;
+  std::string name;
 };
 
 struct ConstantNode : public Node {
-  ConstantNode(std::string id, std::unique_ptr<Node> expr) : id(id), expr(std::move(expr)) {
+  ConstantNode(std::string name, std::unique_ptr<Node> expr) : name(name), expr(std::move(expr)) {
     this->expr->parent = this;
   }
 
@@ -104,7 +116,7 @@ struct ConstantNode : public Node {
     visitor.Constant(*this);
   }
 
-  std::string id;
+  std::string name;
   std::unique_ptr<Node> expr;
 };
 

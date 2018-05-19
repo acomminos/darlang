@@ -34,18 +34,12 @@ TypeSolver* Typeable::Solver() {
   return solver_.get();
 }
 
-Result TypeSolver::Solve(Type*& out_type) {
-  if (solved_type_) {
-    out_type = solved_type_.get();
-    return Result::Ok();
-  }
-
+Result TypeSolver::Solve(std::unique_ptr<Type>& out_type) {
   switch (class_) {
     case TypeClass::UNBOUND:
       return Result::Error(ErrorCode::TYPE_INDETERMINATE, "type class could not be inferred");
     case TypeClass::PRIMITIVE:
-      solved_type_ = std::make_unique<Primitive>(primitive_);
-      out_type = solved_type_.get();
+      out_type = std::make_unique<Primitive>(primitive_);
       return Result::Ok();
     case TypeClass::FUNCTION:
     {
@@ -53,7 +47,7 @@ Result TypeSolver::Solve(Type*& out_type) {
       if (!arguments_valid_) {
         return Result::Error(ErrorCode::TYPE_INDETERMINATE, "arguments unbound");
       }
-      std::vector<Type*> arg_types(arguments_.size());
+      std::vector<std::unique_ptr<Type>> arg_types(arguments_.size());
       for (int i = 0; i < arguments_.size(); i++) {
         auto arg_result = arguments_[i].Solver()->Solve(arg_types[i]);
         if (!arg_result) {
@@ -65,15 +59,14 @@ Result TypeSolver::Solve(Type*& out_type) {
       if (!yields_) {
         return Result::Error(ErrorCode::TYPE_INDETERMINATE, "yield type unbound");
       }
-      Type* yield_type;
+      std::unique_ptr<Type> yield_type;
       auto yield_result = yields_->Solver()->Solve(yield_type);
       if (!yield_result) {
         // TODO(acomminos): nest result
         return yield_result;
       }
 
-      solved_type_ = std::make_unique<Function>(arg_types, yield_type);
-      out_type = solved_type_.get();
+      out_type = std::make_unique<Function>(std::move(arg_types), std::move(yield_type));
       return Result::Ok();
     }
   }

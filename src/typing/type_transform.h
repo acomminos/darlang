@@ -12,10 +12,13 @@ namespace darlang {
 namespace typing {
 
 // Mapping of an identifier to a typeable owned by some AST node.
-typedef util::ScopedMap<std::string, Typeable*> TypeableMap;
+typedef util::ScopedMap<std::string, Typeable*> TypeableScope;
+// Mapping of nodes to typeable annotations.
+// Owns the memory for all typeables.
+typedef std::unordered_map<ast::NodeID, std::unique_ptr<Typeable>> TypeableMap;
 
 // Traverses the given AST node, solving for a valid type assignment.
-class TypeTransform : public ast::Visitor {
+class TypeTransform : public ast::Reducer<TypeableMap> {
   bool Module(ast::ModuleNode& node) override;
 };
 
@@ -24,20 +27,22 @@ class TypeTransform : public ast::Visitor {
 // and recurses on function bodies.
 class DeclarationTypeTransform : public ast::Visitor {
  public:
-  DeclarationTypeTransform(TypeableMap& globals)
-    : global_scope_(globals) {}
+  DeclarationTypeTransform(TypeableMap& typeables, TypeableScope& globals)
+    : typeables_(typeables), global_scope_(globals) {}
 
   bool Declaration(ast::DeclarationNode& node) override;
 
  private:
-  TypeableMap& global_scope_;
+  TypeableMap& typeables_;
+  TypeableScope& global_scope_;
 };
 
-// Produces a typeable from the expression represented by the given AST node.
-class ExpressionTypeTransform : public ast::Reducer<std::unique_ptr<Typeable>> {
+// Recursively annotates expression nodes with typeables, and returns the
+// typeable acting as the return value for the expression.
+class ExpressionTypeTransform : public ast::Reducer<Typeable*> {
  public:
-  ExpressionTypeTransform(const TypeableMap& scope)
-    : scope_(scope) {}
+  ExpressionTypeTransform(TypeableMap& typeables, const TypeableScope& scope)
+    : typeables_(typeables), scope_(scope) {}
 
  private:
   bool IdExpression(ast::IdExpressionNode& node) override;
@@ -45,7 +50,8 @@ class ExpressionTypeTransform : public ast::Reducer<std::unique_ptr<Typeable>> {
   bool Invocation(ast::InvocationNode& node) override;
   bool Guard(ast::GuardNode& node) override;
 
-  const TypeableMap& scope_;
+  TypeableMap& typeables_;
+  const TypeableScope& scope_;
 };
 
 }  // namespace typing

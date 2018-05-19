@@ -4,6 +4,8 @@
 namespace darlang {
 namespace typing {
 
+#include <memory>
+
 class Function;
 class Primitive;
 
@@ -24,17 +26,17 @@ class Type {
 // A function with zero or more arguments, returning a singular type.
 class Function : public Type {
  public:
-  Function(std::vector<Type*> arguments, Type* yields)
-    : arguments_(arguments), yields_(yields) {}
+  Function(std::vector<std::unique_ptr<Type>> arguments, std::unique_ptr<Type> yields)
+    : arguments_(std::move(arguments)), yields_(std::move(yields)) {}
 
   void Visit(Visitor& visitor) override { visitor.Type(*this); }
 
-  std::vector<Type*> arguments() const { return arguments_; }
-  const Type* yields() const { return yields_; }
+  const std::vector<std::unique_ptr<Type>>& arguments() const { return arguments_; }
+  const std::unique_ptr<Type>& yields() const { return yields_; }
 
  private:
-  const std::vector<Type*> arguments_;
-  const Type* yields_;
+  const std::vector<std::unique_ptr<Type>> arguments_;
+  const std::unique_ptr<Type> yields_;
 };
 
 // TODO(acomminos): make enum members consistently cased

@@ -35,9 +35,9 @@ bool LLVMDeclarationTransformer::Declaration(ast::DeclarationNode& node) {
                                      llvm::Type::getInt64Ty(context_));
   auto func_type = llvm::FunctionType::get(llvm::Type::getInt64Ty(context_),
                                            arg_types, false);
-  auto func = llvm::Function::Create(func_type, llvm::Function::ExternalLinkage, node.id, module_);
+  auto func = llvm::Function::Create(func_type, llvm::Function::ExternalLinkage, node.name, module_);
   // TODO(acomminos): check for duplicates
-  func_table_[node.id] = func;
+  func_table_[node.name] = func;
   return false;
 }
 
@@ -47,7 +47,7 @@ bool LLVMDeclarationTransformer::Constant(ast::ConstantNode& node) {
 }
 
 bool LLVMFunctionTransformer::Declaration(ast::DeclarationNode& node) {
-  auto func = func_table_[node.id];
+  auto func = func_table_[node.name];
   auto entry_block = llvm::BasicBlock::Create(context_, "entry", func);
 
   ArgumentSymbolTable arg_symbols;
@@ -76,7 +76,7 @@ llvm::Value* LLVMValueTransformer::Transform(llvm::LLVMContext& context,
 }
 
 bool LLVMValueTransformer::IdExpression(ast::IdExpressionNode& node) {
-  value_ = symbols_[node.id];
+  value_ = symbols_[node.name];
   assert(value_ != nullptr);
   return false;
 }

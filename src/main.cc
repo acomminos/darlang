@@ -31,7 +31,7 @@ int main(int argc, char* argv[]) {
     //module->Visit(pp);
 
     darlang::typing::TypeTransform typer;
-    module->Visit(typer);
+    auto typeable_map = typer.Reduce(*module);
 
     llvm::LLVMContext llvm_context;
     auto llvm_module = darlang::backend::LLVMModuleTransformer::Transform(llvm_context, *module);

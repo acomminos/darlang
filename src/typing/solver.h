@@ -44,10 +44,7 @@ class TypeSolver {
 
   // Attempts to solve for a single concrete type from the constraints fed to
   // this type solver.
-  //
-  // The returned type is owned by this typeable, and is invalid after this
-  // typeable is freed.
-  Result Solve(Type*& out_type);
+  Result Solve(std::unique_ptr<Type>& out_type);
 
   // Merges constraints from the given solver into this solver.
   // Returns false if unification failed.
@@ -58,9 +55,9 @@ class TypeSolver {
   Result ConstrainPrimitive(PrimitiveType primitive);
 
   // Returns a set of `count` arguments associated with the function.
-  // If the arguments of this typeable have already been accessed with a
+  // If the arguments of this solver have already been accessed with a
   // different cardinality, raises an error.
-  // The typeable is implicitly specialized as a function.
+  // The solver is implicitly specialized as a function.
   Result ConstrainArguments(int count, std::vector<Typeable>** out_args);
 
   // Returns the Typeable of the (implicitly-defined) return value.

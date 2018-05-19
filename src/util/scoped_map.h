@@ -24,10 +24,10 @@ class ScopedMap {
   V Lookup(K key) const {
     auto it = map_.find(key);
     if (it != map_.end()) {
-      return *it;
+      return it->second;
     }
     if (parent_ != nullptr) {
-      return parent_;
+      return parent_->Lookup(key);
     }
     return DefaultValue;
   }
