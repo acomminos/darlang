@@ -15,7 +15,7 @@ class ScopedMap {
   ScopedMap() : parent_(nullptr) {}
   // Creates a new ScopedMap falling back to the given parent for unknown
   // identifiers.
-  ScopedMap(ScopedMap* parent) : parent_(parent) {}
+  ScopedMap(ScopedMap const* parent) : parent_(parent) {}
 
   // Attempts to find the value associated with the given key in the ScopedMap.
   // If this ScopedMap does not contain a definition for the value, recurses on
@@ -38,7 +38,7 @@ class ScopedMap {
   }
 
  private:
-  ScopedMap* parent_;
+  const ScopedMap* const parent_;
   std::unordered_map<K, V> map_;
 };
 
