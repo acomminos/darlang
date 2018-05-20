@@ -1,7 +1,7 @@
 #include "type_transform.h"
 
 #include <cassert>
-#include <iostream>
+#include "intrinsics.h"
 
 namespace darlang {
 namespace typing {
@@ -9,6 +9,7 @@ namespace typing {
 bool TypeTransform::Module(ast::ModuleNode& node) {
   TypeableMap typeables;
   TypeableScope global_scope;
+
   // TODO(acomminos): break this into a separate pass so toplevel functions
   //                  can mutually reference each other
   for (auto& child : node.body) {
@@ -74,7 +75,20 @@ bool ExpressionTypeTransform::Invocation(ast::InvocationNode& node) {
   // Constrain the function typeable associated with the callee.
   // TODO(acomminos): have prepass populate toplevel functions/identifiers
   auto func_typeable = scope_.Lookup(node.callee);
-  assert(func_typeable);
+  if (!func_typeable) {
+    // Attempt to resolve an intrinsic if we couldn't find the callee in scope.
+    // XXX(acomminos): should we always try to resolve intrinsics first?
+    if (GetIntrinsic(node.callee) != Intrinsic::UNKNOWN) {
+      // FIXME(acomminos): leave intrinsics unbound for now.
+      //                   progress towards templating is in
+      //                   typing/intrinsics.{h,cc}
+      auto stub_typeable = std::make_unique<Typeable>();
+      set_result(stub_typeable.get());
+      typeables_[node.id] = std::move(stub_typeable);
+      return false;
+    }
+    assert(false);
+  }
 
   std::vector<Typeable>* args;
   assert(func_typeable->Solver()->ConstrainArguments(node.args.size(), &args));
@@ -88,7 +102,7 @@ bool ExpressionTypeTransform::Invocation(ast::InvocationNode& node) {
   }
 
   auto yield_typeable = std::make_unique<Typeable>();
-  assert(func_typeable->Unify(*yield_typeable));
+  assert(func_typeable->Solver()->ConstrainYields()->Unify(*yield_typeable));
 
   set_result(yield_typeable.get());
   typeables_[node.id] = std::move(yield_typeable);

@@ -100,7 +100,7 @@ bool LLVMValueTransformer::Invocation(ast::InvocationNode& node) {
   }
 
   Intrinsic intr;
-  if ((intr = GetIntrinsic(node.callee)) != I_UNKNOWN) {
+  if ((intr = GetIntrinsic(node.callee)) != Intrinsic::UNKNOWN) {
     value_ = GenerateIntrinsic(intr, arg_values, builder_);
   } else {
     auto callee = funcs_[node.callee];
