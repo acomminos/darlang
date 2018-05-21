@@ -7,6 +7,7 @@
 #include "ast/util.h"
 #include "typing/solver.h"
 #include "util/scoped_map.h"
+#include "logger.h"
 
 namespace darlang {
 namespace typing {
@@ -15,13 +16,17 @@ namespace typing {
 typedef util::ScopedMap<std::string, Typeable*> TypeableScope;
 // Mapping of nodes to typeable annotations.
 // Owns the memory for all typeables.
-typedef std::unordered_map<ast::NodeID, std::unique_ptr<Typeable>> TypeableMap;
+typedef std::unordered_map<ast::NodeID, std::shared_ptr<Typeable>> TypeableMap;
 // The output of the pass, storing materialized types for typeable nodes.
 typedef std::unordered_map<ast::NodeID, std::unique_ptr<Type>> TypeMap;
 
 // Traverses the given AST node, solving for a valid type assignment.
 class TypeTransform : public ast::Reducer<TypeMap> {
+ public:
+  TypeTransform(Logger& log) : log_(log) {}
   bool Module(ast::ModuleNode& node) override;
+ private:
+  Logger& log_;
 };
 
 // Computes typeable constraints from a declaration.
@@ -29,22 +34,23 @@ class TypeTransform : public ast::Reducer<TypeMap> {
 // and recurses on function bodies.
 class DeclarationTypeTransform : public ast::Visitor {
  public:
-  DeclarationTypeTransform(TypeableMap& typeables, TypeableScope& globals)
-    : typeables_(typeables), global_scope_(globals) {}
+  DeclarationTypeTransform(Logger& log, TypeableMap& typeables, TypeableScope& globals)
+    : log_(log), typeables_(typeables), global_scope_(globals) {}
 
   bool Declaration(ast::DeclarationNode& node) override;
 
  private:
+  Logger& log_;
   TypeableMap& typeables_;
   TypeableScope& global_scope_;
 };
 
 // Recursively annotates expression nodes with typeables, and returns the
 // typeable acting as the return value for the expression.
-class ExpressionTypeTransform : public ast::Reducer<Typeable*> {
+class ExpressionTypeTransform : public ast::Reducer<std::shared_ptr<Typeable>> {
  public:
-  ExpressionTypeTransform(TypeableMap& typeables, const TypeableScope& scope)
-    : typeables_(typeables), scope_(scope) {}
+  ExpressionTypeTransform(Logger& log, TypeableMap& typeables, const TypeableScope& scope)
+    : log_(log), typeables_(typeables), scope_(scope) {}
 
  private:
   bool IdExpression(ast::IdExpressionNode& node) override;
@@ -52,6 +58,7 @@ class ExpressionTypeTransform : public ast::Reducer<Typeable*> {
   bool Invocation(ast::InvocationNode& node) override;
   bool Guard(ast::GuardNode& node) override;
 
+  Logger& log_;
   TypeableMap& typeables_;
   const TypeableScope& scope_;
 };

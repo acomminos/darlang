@@ -11,6 +11,8 @@ enum class ErrorCode {
 
   UNIMPLEMENTED,      // stub for unimplemented methods
 
+  ID_UNDECLARED,      // reference to undeclared identifier
+
   TYPE_INCOMPATIBLE,  // conflicting typeable constraints set
   TYPE_INDETERMINATE, // insufficient evidence to infer a typeable's class
 };

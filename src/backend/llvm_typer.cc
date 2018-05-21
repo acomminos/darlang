@@ -27,6 +27,9 @@ void LLVMTypeGenerator::Type(typing::Primitive& prim) {
     case typing::PrimitiveType::String:
       assert(false); // TODO(acomminos)
       break;
+    default:
+      assert(false);
+      break;
   }
 }
 

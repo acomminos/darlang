@@ -25,6 +25,11 @@ class TypeSolver {
  public:
   TypeSolver() : class_(TypeClass::UNBOUND), arguments_valid_(false), yields_(nullptr) {}
 
+  TypeSolver(const TypeSolver& solver) = delete;
+  TypeSolver(TypeSolver&& solver) = delete;
+  TypeSolver& operator=(const TypeSolver& solver) = delete;
+  TypeSolver& operator=(TypeSolver&& solver) = delete;
+
   // Attempts to solve for a single concrete type from the constraints fed to
   // this type solver.
   Result Solve(std::unique_ptr<Type>& out_type);
@@ -41,11 +46,11 @@ class TypeSolver {
   // If the arguments of this solver have already been accessed with a
   // different cardinality, raises an error.
   // The solver is implicitly specialized as a function.
-  Result ConstrainArguments(int count, std::vector<Typeable>** out_args);
+  Result ConstrainArguments(int count, std::vector<std::shared_ptr<Typeable>>** out_args);
 
   // Returns the Typeable of the (implicitly-defined) return value.
   // TODO(acomminos): switch to return result
-  Typeable* ConstrainYields();
+  std::shared_ptr<Typeable> ConstrainYields();
 
   TypeClass type_class() const { return class_; }
   bool arguments_valid() const { return arguments_valid_; }
@@ -62,18 +67,17 @@ class TypeSolver {
     assert(class_ == tc);
   }
 
-  std::vector<Typeable>& arguments() {
+  std::vector<std::shared_ptr<Typeable>>& arguments() {
     assert(arguments_valid_);
     return arguments_;
   }
 
-  std::unique_ptr<Type> solved_type_; // set after a successful Solve() call
   TypeClass class_;
 
   PrimitiveType primitive_;
   bool arguments_valid_; // true iff arguments has been constrained
-  std::vector<Typeable> arguments_;
-  std::unique_ptr<Typeable> yields_;
+  std::vector<std::shared_ptr<Typeable>> arguments_;
+  std::shared_ptr<Typeable> yields_;
 };
 
 }  // namespace typing

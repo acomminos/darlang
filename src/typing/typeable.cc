@@ -29,7 +29,7 @@ Result Typeable::Unify(Typeable& other) {
 
   auto result = solver_->Unify(*other.solver_);
   if (result) {
-    other.parent_ = this;
+    other.parent_ = shared_from_this();
     other.solver_ = nullptr;
   }
   return result;

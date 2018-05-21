@@ -18,7 +18,7 @@ Result TypeSolver::Solve(std::unique_ptr<Type>& out_type) {
       }
       std::vector<std::unique_ptr<Type>> arg_types(arguments_.size());
       for (int i = 0; i < arguments_.size(); i++) {
-        auto arg_result = arguments_[i].Solver().Solve(arg_types[i]);
+        auto arg_result = arguments_[i]->Solver().Solve(arg_types[i]);
         if (!arg_result) {
           // TODO(acomminos): nest result
           return arg_result;
@@ -61,14 +61,12 @@ Result TypeSolver::Unify(TypeSolver& other) {
     }
 
     if (arguments_.size() != other_arguments.size()) {
-      // TODO(acomminos): take note regarding cardinality mismatch
       return Result::Error(ErrorCode::TYPE_INCOMPATIBLE, "argument size mismatch");
     }
 
     // Unify each corresponding argument.
     for (int i = 0; i < arguments_.size(); i++) {
-      if (!arguments_[i].Unify(other_arguments[i])) {
-        // TODO(acomminos): log unification error
+      if (!arguments_[i]->Unify(*other_arguments[i])) {
         return Result::Error(ErrorCode::TYPE_INCOMPATIBLE, "argument failed to unify");
       }
     }
@@ -98,13 +96,13 @@ Result TypeSolver::ConstrainPrimitive(PrimitiveType primitive) {
 }
 
 
-Result TypeSolver::ConstrainArguments(int count, std::vector<Typeable>** out_args) {
+Result TypeSolver::ConstrainArguments(int count, std::vector<std::shared_ptr<Typeable>>** out_args) {
   classify(TypeClass::FUNCTION);
 
   if (!arguments_valid_) {
     arguments_.reserve(count);
     for (int i = 0; i < count; i++) {
-      arguments_.push_back(Typeable());
+      arguments_.push_back(std::make_shared<Typeable>());
     }
     arguments_valid_ = true;
   }
@@ -119,13 +117,13 @@ Result TypeSolver::ConstrainArguments(int count, std::vector<Typeable>** out_arg
   return Result::Ok();
 }
 
-Typeable* TypeSolver::ConstrainYields() {
+std::shared_ptr<Typeable> TypeSolver::ConstrainYields() {
   classify(TypeClass::FUNCTION);
 
   if (!yields_) {
-    yields_ = std::make_unique<Typeable>();
+    yields_ = std::make_shared<Typeable>();
   }
-  return yields_.get();
+  return yields_;
 }
 
 }  // namespace typing

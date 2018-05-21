@@ -113,6 +113,7 @@ class LLVMValueTransformer : public ast::Visitor {
   FunctionTable& funcs_;
   ArgumentSymbolTable& symbols_;
   TypeMap& types_;
+
   llvm::Value* value_;
 };
 

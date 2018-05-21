@@ -30,7 +30,7 @@ int main(int argc, char* argv[]) {
     //darlang::ast::PrettyPrinter pp;
     //module->Visit(pp);
 
-    darlang::typing::TypeTransform typer;
+    darlang::typing::TypeTransform typer(logger);
     auto types = typer.Reduce(*module);
 
     llvm::LLVMContext llvm_context;
