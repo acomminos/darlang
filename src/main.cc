@@ -31,10 +31,10 @@ int main(int argc, char* argv[]) {
     //module->Visit(pp);
 
     darlang::typing::TypeTransform typer;
-    auto typeable_map = typer.Reduce(*module);
+    auto typeables = typer.Reduce(*module);
 
     llvm::LLVMContext llvm_context;
-    auto llvm_module = darlang::backend::LLVMModuleTransformer::Transform(llvm_context, *module);
+    auto llvm_module = darlang::backend::LLVMModuleTransformer::Transform(llvm_context, typeables, *module);
     llvm_module->print(llvm::errs(), nullptr);
   }
 }

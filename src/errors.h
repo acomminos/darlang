@@ -1,6 +1,9 @@
 #ifndef DARLANG_SRC_ERRORS_H_
 #define DARLANG_SRC_ERRORS_H_
 
+#include <memory>
+#include <sstream>
+
 namespace darlang {
 
 enum class ErrorCode {
@@ -23,6 +26,14 @@ struct Result {
 
   operator bool() const {
     return code == ErrorCode::OK;
+  }
+
+  operator std::string() const {
+    std::stringstream ss;
+    // TODO(acomminos): map code to string
+    ss << "[" << (int)code << "]" << " " << message;
+    // TODO(acomminos): print child
+    return ss.str();
   }
 
   ErrorCode code;

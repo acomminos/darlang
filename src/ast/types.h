@@ -4,6 +4,8 @@
 #include <memory>
 #include <vector>
 
+#include "util/location.h"
+
 namespace darlang {
 namespace ast {
 
@@ -24,21 +26,15 @@ typedef std::unique_ptr<Node> NodePtr;
 // If an implementation method returns true, the node is permitted to recurse
 // into its children and invoke the visitor recursively.
 struct Visitor {
-  virtual bool Module(ModuleNode& node) {}
-  virtual bool Declaration(DeclarationNode& node) {}
-  virtual bool Constant(ConstantNode& node) {}
-  virtual bool IdExpression(IdExpressionNode& node) {}
-  virtual bool IntegralLiteral(IntegralLiteralNode& node) {}
-  virtual bool StringLiteral(StringLiteralNode& node) {}
-  virtual bool BooleanLiteral(BooleanLiteralNode& node) {}
-  virtual bool Invocation(InvocationNode& node) {}
-  virtual bool Guard(GuardNode& node) {}
-};
-
-struct Location {
-  std::string file;
-  int line;
-  int column;
+  virtual bool Module(ModuleNode& node) { return false; }
+  virtual bool Declaration(DeclarationNode& node) { return false; }
+  virtual bool Constant(ConstantNode& node) { return false; }
+  virtual bool IdExpression(IdExpressionNode& node) { return false; }
+  virtual bool IntegralLiteral(IntegralLiteralNode& node) { return false; }
+  virtual bool StringLiteral(StringLiteralNode& node) { return false; }
+  virtual bool BooleanLiteral(BooleanLiteralNode& node) { return false; }
+  virtual bool Invocation(InvocationNode& node) { return false; }
+  virtual bool Guard(GuardNode& node) { return false; }
 };
 
 typedef int64_t NodeID;
@@ -60,9 +56,9 @@ struct Node {
   // An (optional) pointer to the node's parent.
   Node* parent;
   // Beginning of the range (inclusive) that this node was parsed from.
-  Location start;
+  util::Location start;
   // End of the range (inclusive) that this node was parsed from.
-  Location end;
+  util::Location end;
 };
 
 struct ModuleNode : public Node {

@@ -24,9 +24,9 @@ class Parser {
    ast::NodePtr ParseStringLiteral();
    ast::NodePtr ParseIntegralLiteral();
 
-   // Returns the current position within the source file, formatted as an
-   // ast::Location.
-   inline ast::Location location() {
+   // Returns the current position within the source file, formatted as a
+   // util::Location.
+   inline util::Location location() {
      return {ts_.file(), ts_.line(), ts_.column()};
    }
 
@@ -35,7 +35,7 @@ class Parser {
      if (tok.type != type) {
        std::stringstream ss;
        ss << "expected token " << Token::TypeNames[type] << ", got " << Token::TypeNames[tok.type];
-       log_.Fatal(ss.str(), ts_.file(), ts_.line(), ts_.column());
+       log_.Fatal(ss.str(), {ts_.file(), ts_.line(), ts_.column()});
      }
      return tok;
    }

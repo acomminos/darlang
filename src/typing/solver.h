@@ -6,27 +6,10 @@
 #include <vector>
 #include "errors.h"
 #include "typing/types.h"
+#include "typing/typeable.h"
 
 namespace darlang {
 namespace typing {
-
-class Typeable;
-class TypeSolver;
-
-// Holds either a TypeSolver or reference to a parent the typeable has been
-// merged with.
-class Typeable {
- public:
-  // Instantiates a new unbound typeable.
-  Typeable();
-  // Unifies a typeable into this typeable, intersecting their type solvers.
-  Result Unify(Typeable& other);
-  // Obtains the TypeSolver determining this Typeable.
-  TypeSolver* Solver();
- private:
-  std::unique_ptr<TypeSolver> solver_;
-  Typeable* parent_;
-};
 
 // A high-level classification of the type being solved for.
 enum class TypeClass {

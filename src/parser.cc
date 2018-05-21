@@ -114,7 +114,7 @@ ast::NodePtr Parser::ParseGuard() {
 
     if (wildcard) {
       if (guard_node->wildcard_case) {
-        log_.Fatal("multiple wildcard cases specified", ts_.file(), ts_.line(), ts_.column());
+        log_.Fatal("multiple wildcard cases specified", {ts_.file(), ts_.line(), ts_.column()});
       }
       guard_node->wildcard_case = std::move(value_expr);
     } else {
@@ -129,7 +129,7 @@ ast::NodePtr Parser::ParseGuard() {
   }
 
   if (!guard_node->wildcard_case) {
-    log_.Fatal("no wildcard case specified", ts_.file(), ts_.line(), ts_.column());
+    log_.Fatal("no wildcard case specified", {ts_.file(), ts_.line(), ts_.column()});
   }
 
   // Allow optional trailing break.

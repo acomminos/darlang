@@ -3,44 +3,6 @@
 namespace darlang {
 namespace typing {
 
-Typeable::Typeable() : parent_(nullptr) {
-  solver_ = std::make_unique<TypeSolver>();
-}
-
-Result Typeable::Unify(Typeable& other) {
-  // Traverse to the roots of each of the typeables being merged.
-  if (parent_) {
-    return parent_->Unify(other);
-  }
-  if (other.parent_) {
-    return Unify(*(other.parent_));
-  }
-
-  // If we're the highest-level parents, expect a solver implementation.
-  assert(solver_);
-  assert(other.solver_);
-
-  // If the typeables are part of the same component, they've already been
-  // unified.
-  if (solver_ == other.solver_) {
-    return Result::Ok();
-  }
-
-  auto result = solver_->Unify(*other.solver_);
-  if (result) {
-    other.parent_ = this;
-    other.solver_ = nullptr;
-  }
-  return result;
-}
-
-TypeSolver* Typeable::Solver() {
-  if (parent_) {
-    return parent_->Solver();
-  }
-  return solver_.get();
-}
-
 Result TypeSolver::Solve(std::unique_ptr<Type>& out_type) {
   switch (class_) {
     case TypeClass::UNBOUND:
@@ -56,7 +18,7 @@ Result TypeSolver::Solve(std::unique_ptr<Type>& out_type) {
       }
       std::vector<std::unique_ptr<Type>> arg_types(arguments_.size());
       for (int i = 0; i < arguments_.size(); i++) {
-        auto arg_result = arguments_[i].Solver()->Solve(arg_types[i]);
+        auto arg_result = arguments_[i].Solver().Solve(arg_types[i]);
         if (!arg_result) {
           // TODO(acomminos): nest result
           return arg_result;
@@ -67,7 +29,7 @@ Result TypeSolver::Solve(std::unique_ptr<Type>& out_type) {
         return Result::Error(ErrorCode::TYPE_INDETERMINATE, "yield type unbound");
       }
       std::unique_ptr<Type> yield_type;
-      auto yield_result = yields_->Solver()->Solve(yield_type);
+      auto yield_result = yields_->Solver().Solve(yield_type);
       if (!yield_result) {
         // TODO(acomminos): nest result
         return yield_result;

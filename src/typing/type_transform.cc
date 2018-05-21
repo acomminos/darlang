@@ -25,7 +25,7 @@ bool DeclarationTypeTransform::Declaration(ast::DeclarationNode& node) {
   global_scope_.Assign(node.name, func_typeable.get());
 
   std::vector<Typeable>* arg_typeables;
-  assert(func_typeable->Solver()->ConstrainArguments(node.args.size(), &arg_typeables));
+  assert(func_typeable->Solver().ConstrainArguments(node.args.size(), &arg_typeables));
 
   TypeableScope func_scope(&global_scope_);
   // Create typeable declarations for all argument identifiers.
@@ -37,7 +37,7 @@ bool DeclarationTypeTransform::Declaration(ast::DeclarationNode& node) {
 
   auto expr_typeable = ExpressionTypeTransform(typeables_, func_scope).Reduce(*node.expr);
 
-  auto return_typeable = func_typeable->Solver()->ConstrainYields();
+  auto return_typeable = func_typeable->Solver().ConstrainYields();
   assert(return_typeable->Unify(*expr_typeable));
 
   typeables_[node.id] = std::move(func_typeable);
@@ -63,7 +63,7 @@ bool ExpressionTypeTransform::IdExpression(ast::IdExpressionNode& node) {
 
 bool ExpressionTypeTransform::IntegralLiteral(ast::IntegralLiteralNode& node) {
   auto int_typeable = std::make_unique<Typeable>();
-  int_typeable->Solver()->ConstrainPrimitive(PrimitiveType::Int64);
+  int_typeable->Solver().ConstrainPrimitive(PrimitiveType::Int64);
 
   set_result(int_typeable.get());
   typeables_[node.id] = std::move(int_typeable);
@@ -91,7 +91,7 @@ bool ExpressionTypeTransform::Invocation(ast::InvocationNode& node) {
   }
 
   std::vector<Typeable>* args;
-  assert(func_typeable->Solver()->ConstrainArguments(node.args.size(), &args));
+  assert(func_typeable->Solver().ConstrainArguments(node.args.size(), &args));
 
   for (int i = 0; i < args->size(); i++) {
     auto& arg_typeable = (*args)[i];
@@ -102,7 +102,7 @@ bool ExpressionTypeTransform::Invocation(ast::InvocationNode& node) {
   }
 
   auto yield_typeable = std::make_unique<Typeable>();
-  assert(func_typeable->Solver()->ConstrainYields()->Unify(*yield_typeable));
+  assert(func_typeable->Solver().ConstrainYields()->Unify(*yield_typeable));
 
   set_result(yield_typeable.get());
   typeables_[node.id] = std::move(yield_typeable);

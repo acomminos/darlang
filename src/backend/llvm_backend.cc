@@ -5,8 +5,8 @@ namespace darlang {
 namespace backend {
 
 /* static */
-std::unique_ptr<llvm::Module> LLVMModuleTransformer::Transform(llvm::LLVMContext& context, ast::Node& node) {
-  LLVMModuleTransformer transformer(context);
+std::unique_ptr<llvm::Module> LLVMModuleTransformer::Transform(llvm::LLVMContext& context, const TypeablePass& typeables, ast::Node& node) {
+  LLVMModuleTransformer transformer(context, typeables);
   node.Visit(transformer);
   return std::move(transformer.module_);
 }
@@ -15,14 +15,14 @@ bool LLVMModuleTransformer::Module(ast::ModuleNode& node) {
   module_ = llvm::make_unique<llvm::Module>(node.name, context_);
 
   // Perform an initial pass to populate function declarations.
-  LLVMDeclarationTransformer decl_transform(context_, module_.get());
+  LLVMDeclarationTransformer decl_transform(context_, module_.get(), typeables_);
   for (auto& child : node.body) {
     child->Visit(decl_transform);
   }
 
   auto& func_table = decl_transform.func_table();
 
-  LLVMFunctionTransformer func_transform(context_, module_.get(), func_table);
+  LLVMFunctionTransformer func_transform(context_, module_.get(), func_table, typeables_);
   for (auto& child : node.body) {
     child->Visit(func_transform);
   }
@@ -59,7 +59,7 @@ bool LLVMFunctionTransformer::Declaration(ast::DeclarationNode& node) {
   llvm::IRBuilder<> builder(context_);
   builder.SetInsertPoint(entry_block);
 
-  auto expr = LLVMValueTransformer::Transform(context_, builder, *node.expr, func_table_, arg_symbols);
+  auto expr = LLVMValueTransformer::Transform(context_, builder, *node.expr, func_table_, arg_symbols, typeables_);
   builder.CreateRet(expr);
   return false;
 }
@@ -69,8 +69,9 @@ llvm::Value* LLVMValueTransformer::Transform(llvm::LLVMContext& context,
                                              llvm::IRBuilder<>& builder,
                                              ast::Node& node,
                                              FunctionTable& funcs,
-                                             ArgumentSymbolTable& symbols) {
-  LLVMValueTransformer transformer(context, builder, funcs, symbols);
+                                             ArgumentSymbolTable& symbols,
+                                             const TypeablePass& typeables) {
+  LLVMValueTransformer transformer(context, builder, funcs, symbols, typeables);
   node.Visit(transformer);
   return transformer.value();
 }
@@ -95,7 +96,7 @@ bool LLVMValueTransformer::BooleanLiteral(ast::BooleanLiteralNode& node) {
 bool LLVMValueTransformer::Invocation(ast::InvocationNode& node) {
   std::vector<llvm::Value*> arg_values;
   for (auto& expr : node.args) {
-    auto value = LLVMValueTransformer::Transform(context_, builder_, *expr, funcs_, symbols_);
+    auto value = LLVMValueTransformer::Transform(context_, builder_, *expr, funcs_, symbols_, typeables_);
     arg_values.push_back(value);
   }
 
@@ -124,6 +125,12 @@ bool LLVMValueTransformer::Guard(ast::GuardNode& node) {
 
   // Insert a phi node as the first instruction in the terminal block.
   builder_.SetInsertPoint(terminal_block);
+
+  std::unique_ptr<Type> guard_type;
+  Result result;
+  if (!(result = typeables_[node.id]->Solver().Solve(guard_type))) {
+  }
+
   // TODO: implement type system
   auto phi_node = builder_.CreatePHI(llvm::Type::getInt64Ty(context_),
                                      1 + node.cases.size());
@@ -137,7 +144,7 @@ bool LLVMValueTransformer::Guard(ast::GuardNode& node) {
 
     // Compute the expression value in the case block and branch to the terminator.
     builder_.SetInsertPoint(case_block);
-    auto expr_value = LLVMValueTransformer::Transform(context_, builder_, *guard_case.second, funcs_, symbols_);
+    auto expr_value = LLVMValueTransformer::Transform(context_, builder_, *guard_case.second, funcs_, symbols_, typeables_);
     phi_node->addIncoming(expr_value, case_block);
     builder_.CreateBr(terminal_block);
 
@@ -145,7 +152,7 @@ bool LLVMValueTransformer::Guard(ast::GuardNode& node) {
 
     // Add a conditional check to the prelude to jump to this case.
     builder_.SetInsertPoint(prelude_block);
-    auto cond_value = LLVMValueTransformer::Transform(context_, builder_, *guard_case.first, funcs_, symbols_);
+    auto cond_value = LLVMValueTransformer::Transform(context_, builder_, *guard_case.first, funcs_, symbols_, typeables_);
     if (i < node.cases.size() - 1) {
       // Create and branch to the next possible case if this case's check fails.
       // All blocks' terminators must have a defined control flow.
@@ -161,7 +168,7 @@ bool LLVMValueTransformer::Guard(ast::GuardNode& node) {
 
   // Generate the wildcard (else) block.
   builder_.SetInsertPoint(wildcard_block);
-  auto wildcard_value = LLVMValueTransformer::Transform(context_, builder_, *node.wildcard_case, funcs_, symbols_);
+  auto wildcard_value = LLVMValueTransformer::Transform(context_, builder_, *node.wildcard_case, funcs_, symbols_, typeables_);
   phi_node->addIncoming(wildcard_value, wildcard_block);
   builder_.CreateBr(terminal_block);
   parent_func->getBasicBlockList().push_back(wildcard_block);
