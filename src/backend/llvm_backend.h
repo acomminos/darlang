@@ -8,7 +8,7 @@
 #include "llvm/IR/Module.h"
 
 #include "ast/types.h"
-#include "typing/typeable.h"
+#include "typing/types.h"
 
 namespace darlang {
 namespace backend {
@@ -18,7 +18,7 @@ typedef std::unordered_map<std::string, llvm::Value*> ArgumentSymbolTable;
 // Global function table produced by the declaration transform.
 typedef std::unordered_map<std::string, llvm::Function*> FunctionTable;
 // Result of the type analysis phase.
-typedef std::unordered_map<ast::NodeID, std::unique_ptr<typing::Typeable>> TypeablePass;
+typedef std::unordered_map<ast::NodeID, std::unique_ptr<typing::Type>> TypeMap;
 
 class LLVMModuleTransformer : public ast::Visitor {
  public:
@@ -26,23 +26,23 @@ class LLVMModuleTransformer : public ast::Visitor {
   // llvm::Module. Requires the result of a type synthesis pass.
   //
   // Returns nullptr on failure.
-  static std::unique_ptr<llvm::Module> Transform(llvm::LLVMContext& context, const TypeablePass& typeables, ast::Node& node);
+  static std::unique_ptr<llvm::Module> Transform(llvm::LLVMContext& context, TypeMap& types, ast::Node& node);
 
   bool Module(ast::ModuleNode& node) override;
  private:
-  LLVMModuleTransformer(llvm::LLVMContext& context, const TypeablePass& typeables)
-    : context_(context), typeables_(typeables) {}
+  LLVMModuleTransformer(llvm::LLVMContext& context, TypeMap& types)
+    : context_(context), types_(types) {}
 
   llvm::LLVMContext& context_;
   std::unique_ptr<llvm::Module> module_;
-  const TypeablePass& typeables_;
+  TypeMap& types_;
 };
 
 // Transforms top-level function and constant declarations in a module.
 class LLVMDeclarationTransformer : public ast::Visitor {
  public:
-  LLVMDeclarationTransformer(llvm::LLVMContext& context, llvm::Module* module, const TypeablePass& typeables)
-    : context_(context), module_(module), typeables_(typeables) {}
+  LLVMDeclarationTransformer(llvm::LLVMContext& context, llvm::Module* module, TypeMap& types)
+    : context_(context), module_(module), types_(types) {}
 
   FunctionTable& func_table() { return func_table_; }
 
@@ -53,7 +53,7 @@ class LLVMDeclarationTransformer : public ast::Visitor {
   llvm::LLVMContext& context_;
   llvm::Module* module_;
   FunctionTable func_table_;
-  const TypeablePass& typeables_;
+  TypeMap& types_;
 };
 
 // Generates function bodies.
@@ -62,8 +62,8 @@ class LLVMFunctionTransformer : public ast::Visitor {
   LLVMFunctionTransformer(llvm::LLVMContext& context,
                           llvm::Module* module,
                           FunctionTable& func_table,
-                          const TypeablePass& typeables)
-    : context_(context), module_(module), func_table_(func_table), typeables_(typeables) {}
+                          TypeMap& types)
+    : context_(context), module_(module), func_table_(func_table), types_(types) {}
 
  private:
   bool Declaration(ast::DeclarationNode& node) override;
@@ -71,7 +71,7 @@ class LLVMFunctionTransformer : public ast::Visitor {
   llvm::LLVMContext& context_;
   llvm::Module* module_;
   FunctionTable& func_table_;
-  const TypeablePass& typeables_;
+  TypeMap& types_;
 };
 
 // Transforms AST nodes representing an expression into a llvm::Value* within
@@ -87,7 +87,7 @@ class LLVMValueTransformer : public ast::Visitor {
                                 ast::Node& node,
                                 FunctionTable& funcs,
                                 ArgumentSymbolTable& symbols,
-                                const TypeablePass& typeables);
+                                TypeMap& types);
 
   bool IdExpression(ast::IdExpressionNode& node) override;
   bool IntegralLiteral(ast::IntegralLiteralNode& node) override;
@@ -100,19 +100,19 @@ class LLVMValueTransformer : public ast::Visitor {
  private:
   LLVMValueTransformer(llvm::LLVMContext& context, llvm::IRBuilder<>& builder,
                        FunctionTable& funcs, ArgumentSymbolTable& symbols,
-                       const TypeablePass& typeables)
+                       TypeMap& types)
     : context_(context)
     , builder_(builder)
     , funcs_(funcs)
     , symbols_(symbols)
-    , typeables_(typeables)
+    , types_(types)
     , value_(nullptr) {}
 
   llvm::LLVMContext& context_;
   llvm::IRBuilder<>& builder_;
   FunctionTable& funcs_;
   ArgumentSymbolTable& symbols_;
-  const TypeablePass& typeables_;
+  TypeMap& types_;
   llvm::Value* value_;
 };
 

@@ -1,12 +1,14 @@
-#include "llvm_backend.h"
-#include "llvm_intrinsics.h"
+#include "backend/llvm_backend.h"
+#include "backend/llvm_intrinsics.h"
+#include "backend/llvm_typer.h"
+#include "typing/solver.h"
 
 namespace darlang {
 namespace backend {
 
 /* static */
-std::unique_ptr<llvm::Module> LLVMModuleTransformer::Transform(llvm::LLVMContext& context, const TypeablePass& typeables, ast::Node& node) {
-  LLVMModuleTransformer transformer(context, typeables);
+std::unique_ptr<llvm::Module> LLVMModuleTransformer::Transform(llvm::LLVMContext& context, TypeMap& types, ast::Node& node) {
+  LLVMModuleTransformer transformer(context, types);
   node.Visit(transformer);
   return std::move(transformer.module_);
 }
@@ -15,14 +17,14 @@ bool LLVMModuleTransformer::Module(ast::ModuleNode& node) {
   module_ = llvm::make_unique<llvm::Module>(node.name, context_);
 
   // Perform an initial pass to populate function declarations.
-  LLVMDeclarationTransformer decl_transform(context_, module_.get(), typeables_);
+  LLVMDeclarationTransformer decl_transform(context_, module_.get(), types_);
   for (auto& child : node.body) {
     child->Visit(decl_transform);
   }
 
   auto& func_table = decl_transform.func_table();
 
-  LLVMFunctionTransformer func_transform(context_, module_.get(), func_table, typeables_);
+  LLVMFunctionTransformer func_transform(context_, module_.get(), func_table, types_);
   for (auto& child : node.body) {
     child->Visit(func_transform);
   }
@@ -30,11 +32,7 @@ bool LLVMModuleTransformer::Module(ast::ModuleNode& node) {
 }
 
 bool LLVMDeclarationTransformer::Declaration(ast::DeclarationNode& node) {
-  // TODO(acomminos): implement type system
-  std::vector<llvm::Type*> arg_types(node.args.size(),
-                                     llvm::Type::getInt64Ty(context_));
-  auto func_type = llvm::FunctionType::get(llvm::Type::getInt64Ty(context_),
-                                           arg_types, false);
+  auto func_type = static_cast<llvm::FunctionType*>(LLVMTypeGenerator::Generate(context_, *types_[node.id]));
   auto func = llvm::Function::Create(func_type, llvm::Function::ExternalLinkage, node.name, module_);
   // TODO(acomminos): check for duplicates
   func_table_[node.name] = func;
@@ -59,7 +57,7 @@ bool LLVMFunctionTransformer::Declaration(ast::DeclarationNode& node) {
   llvm::IRBuilder<> builder(context_);
   builder.SetInsertPoint(entry_block);
 
-  auto expr = LLVMValueTransformer::Transform(context_, builder, *node.expr, func_table_, arg_symbols, typeables_);
+  auto expr = LLVMValueTransformer::Transform(context_, builder, *node.expr, func_table_, arg_symbols, types_);
   builder.CreateRet(expr);
   return false;
 }
@@ -70,8 +68,8 @@ llvm::Value* LLVMValueTransformer::Transform(llvm::LLVMContext& context,
                                              ast::Node& node,
                                              FunctionTable& funcs,
                                              ArgumentSymbolTable& symbols,
-                                             const TypeablePass& typeables) {
-  LLVMValueTransformer transformer(context, builder, funcs, symbols, typeables);
+                                             TypeMap& types) {
+  LLVMValueTransformer transformer(context, builder, funcs, symbols, types);
   node.Visit(transformer);
   return transformer.value();
 }
@@ -96,7 +94,7 @@ bool LLVMValueTransformer::BooleanLiteral(ast::BooleanLiteralNode& node) {
 bool LLVMValueTransformer::Invocation(ast::InvocationNode& node) {
   std::vector<llvm::Value*> arg_values;
   for (auto& expr : node.args) {
-    auto value = LLVMValueTransformer::Transform(context_, builder_, *expr, funcs_, symbols_, typeables_);
+    auto value = LLVMValueTransformer::Transform(context_, builder_, *expr, funcs_, symbols_, types_);
     arg_values.push_back(value);
   }
 
@@ -126,14 +124,10 @@ bool LLVMValueTransformer::Guard(ast::GuardNode& node) {
   // Insert a phi node as the first instruction in the terminal block.
   builder_.SetInsertPoint(terminal_block);
 
-  std::unique_ptr<Type> guard_type;
-  Result result;
-  if (!(result = typeables_[node.id]->Solver().Solve(guard_type))) {
-  }
+  llvm::Type* guard_type = LLVMTypeGenerator::Generate(context_, *types_[node.id]);
+  assert(guard_type);
 
-  // TODO: implement type system
-  auto phi_node = builder_.CreatePHI(llvm::Type::getInt64Ty(context_),
-                                     1 + node.cases.size());
+  auto phi_node = builder_.CreatePHI(guard_type, 1 + node.cases.size());
 
   // Must have at least one case in order to terminate the prelude block.
   assert(node.cases.size() > 0);
@@ -144,7 +138,7 @@ bool LLVMValueTransformer::Guard(ast::GuardNode& node) {
 
     // Compute the expression value in the case block and branch to the terminator.
     builder_.SetInsertPoint(case_block);
-    auto expr_value = LLVMValueTransformer::Transform(context_, builder_, *guard_case.second, funcs_, symbols_, typeables_);
+    auto expr_value = LLVMValueTransformer::Transform(context_, builder_, *guard_case.second, funcs_, symbols_, types_);
     phi_node->addIncoming(expr_value, case_block);
     builder_.CreateBr(terminal_block);
 
@@ -152,7 +146,7 @@ bool LLVMValueTransformer::Guard(ast::GuardNode& node) {
 
     // Add a conditional check to the prelude to jump to this case.
     builder_.SetInsertPoint(prelude_block);
-    auto cond_value = LLVMValueTransformer::Transform(context_, builder_, *guard_case.first, funcs_, symbols_, typeables_);
+    auto cond_value = LLVMValueTransformer::Transform(context_, builder_, *guard_case.first, funcs_, symbols_, types_);
     if (i < node.cases.size() - 1) {
       // Create and branch to the next possible case if this case's check fails.
       // All blocks' terminators must have a defined control flow.
@@ -168,7 +162,7 @@ bool LLVMValueTransformer::Guard(ast::GuardNode& node) {
 
   // Generate the wildcard (else) block.
   builder_.SetInsertPoint(wildcard_block);
-  auto wildcard_value = LLVMValueTransformer::Transform(context_, builder_, *node.wildcard_case, funcs_, symbols_, typeables_);
+  auto wildcard_value = LLVMValueTransformer::Transform(context_, builder_, *node.wildcard_case, funcs_, symbols_, types_);
   phi_node->addIncoming(wildcard_value, wildcard_block);
   builder_.CreateBr(terminal_block);
   parent_func->getBasicBlockList().push_back(wildcard_block);

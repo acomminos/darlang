@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include "intrinsics.h"
+#include "logger.h"
 
 namespace darlang {
 namespace typing {
@@ -16,7 +17,21 @@ bool TypeTransform::Module(ast::ModuleNode& node) {
     DeclarationTypeTransform decl_transform(typeables, global_scope);
     child->Visit(decl_transform);
   }
-  set_result(std::move(typeables));
+
+  // After building up typeable constraints, attempt to solve for concrete types.
+  TypeMap types;
+  for (auto& map_pair : typeables) {
+    auto& node_id = map_pair.first;
+    auto& typeable = map_pair.second;
+    auto result = typeable->Solver().Solve(types[node_id]);
+    if (!result) {
+      // TODO(acomminos): add location info
+      ErrorLog.Error(result, {});
+      assert(false);
+    }
+  }
+
+  set_result(std::move(types));
   return false;
 }
 

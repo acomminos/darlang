@@ -1,6 +1,7 @@
 #ifndef DARLANG_SRC_BACKEND_LLVM_TYPER_H_
 #define DARLANG_SRC_BACKEND_LLVM_TYPER_H_
 
+#include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Type.h"
 
