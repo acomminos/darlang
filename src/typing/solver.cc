@@ -53,6 +53,11 @@ Result TypeSolver::Unify(TypeSolver& other) {
 
   // XXX(acomminos): bit of a hack until we get disjoint solvers.
   if (other.type_class() == TypeClass::PRIMITIVE) {
+    if (type_class() != TypeClass::UNBOUND &&
+        primitive_ != other.primitive())
+    {
+      return Result::Error(ErrorCode::TYPE_INCOMPATIBLE, "conflicting primitive constraints");
+    }
     primitive_ = other.primitive();
   }
 
