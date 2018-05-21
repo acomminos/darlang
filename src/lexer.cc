@@ -34,9 +34,17 @@ static bool is_numeric(char c) {
 Token Lexer::Next() {
   char c = input_.peek();
 
-  // Skip whitespace.
+  // Skip whitespace and comments.
   if (c == ' ' || c == '\t' || c == '\n') {
     getchar();
+    return Next();
+  }
+
+  // Consume comments, up to and including the EOL.
+  if (c == '-') {
+    do {
+      c = getchar();
+    } while (c != '\n' && c != EOF);
     return Next();
   }
 

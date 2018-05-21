@@ -1,3 +1,4 @@
+- A simple implementation of the Euclidean GCD algorithm.
 euclid(a,b) = {
   is(b,0) : a;
         * : euclid(b, mod(a,b));
