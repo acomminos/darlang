@@ -1,0 +1,3 @@
+identity(a) = a
+
+main() = 0
