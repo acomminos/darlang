@@ -55,6 +55,7 @@ class TypeSolver {
   TypeClass type_class() const { return class_; }
   bool arguments_valid() const { return arguments_valid_; }
   bool has_yields() const { return !!yields_; }
+  PrimitiveType primitive() const { return primitive_; }
 
  private:
   // Shifts the solver to the given TypeClass from the initial unbound state, or

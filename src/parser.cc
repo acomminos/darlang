@@ -1,4 +1,5 @@
 #include "parser.h"
+#include "errors.h"
 
 namespace darlang {
 
@@ -75,10 +76,15 @@ ast::NodePtr Parser::ParseExpr() {
     case Token::LITERAL_INTEGRAL:
       return ParseIntegralLiteral();
     default:
-      // TODO: throw error
-      break;
+      log_.Fatal(
+        Result::Error(
+          ErrorCode::TOKEN_UNEXPECTED,
+          "unexpected " + std::string(Token::TypeNames[ts_.PeekType()])
+        ),
+        location()
+      );
+      return nullptr;
   }
-  return nullptr;
 }
 
 ast::NodePtr Parser::ParseIdentExpr() {

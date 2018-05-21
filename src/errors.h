@@ -11,6 +11,8 @@ enum class ErrorCode {
 
   UNIMPLEMENTED,      // stub for unimplemented methods
 
+  TOKEN_UNEXPECTED,   // unexpected token
+
   ID_UNDECLARED,      // reference to undeclared identifier
 
   TYPE_INCOMPATIBLE,  // conflicting typeable constraints set

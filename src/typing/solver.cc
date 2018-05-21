@@ -51,6 +51,11 @@ Result TypeSolver::Unify(TypeSolver& other) {
     return Result::Error(ErrorCode::TYPE_INCOMPATIBLE, "type classes have conflicting specializations");
   }
 
+  // XXX(acomminos): bit of a hack until we get disjoint solvers.
+  if (other.type_class() == TypeClass::PRIMITIVE) {
+    primitive_ = other.primitive();
+  }
+
   // If the other solver has valid arguments, we have to import them into this
   // solver.
   if (other.arguments_valid()) {
