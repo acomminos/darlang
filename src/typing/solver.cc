@@ -70,7 +70,7 @@ Result TypeSolver::Unify(TypeSolver& other) {
     }
 
     // Unify each corresponding argument.
-    for (int i = 0; i < arguments_.size(); i++) {
+    for (auto i = 0; i < arguments_.size(); i++) {
       if (!arguments_[i]->Unify(*other_arguments[i])) {
         return Result::Error(ErrorCode::TYPE_INCOMPATIBLE, "argument failed to unify");
       }

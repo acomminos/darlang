@@ -27,4 +27,4 @@ target_link_libraries(darlang ${llvm_libs})
 
 target_include_directories(darlang PUBLIC ${CMAKE_SOURCE_DIR}/src)
 
-#target_compile_options(darlang PRIVATE -Wall -Werror)
+target_compile_options(darlang PRIVATE -Wall)

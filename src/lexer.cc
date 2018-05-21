@@ -92,7 +92,7 @@ Token Lexer::ReadIdentifier() {
   char c = input_.peek();
   std::string value;
   while (is_alpha(c) || is_numeric(c) || c == '_') {
-    all_caps &= ~(c >= 'a' && c <= 'z');
+    all_caps &= !(c >= 'a' && c <= 'z');
     value += getchar();
     c = input_.peek();
   }

@@ -36,7 +36,7 @@ void LLVMTypeGenerator::Type(typing::Primitive& prim) {
 void LLVMTypeGenerator::Type(typing::Function& func) {
   llvm::Type* yield_type = LLVMTypeGenerator::Generate(context_, *func.yields());
   std::vector<llvm::Type*> arg_types(func.arguments().size());
-  for (int i = 0; i < func.arguments().size(); i++) {
+  for (unsigned int i = 0; i < func.arguments().size(); i++) {
     arg_types[i] = LLVMTypeGenerator::Generate(context_, *func.arguments()[i]);
   }
   result_ = llvm::FunctionType::get(yield_type, arg_types, false);
