@@ -1,11 +1,43 @@
 #include "parser.h"
 #include "errors.h"
 
+#include <cassert>
+
 namespace darlang {
+
+// A helper class to annotate the parse start and end locations of a node.
+// Leverages the lifetime of the annotator to determine when parsing starts and
+// ends. Should be allocated at the start of a bottom-level parse method.
+class ScopedLocationAnnotator {
+ public:
+  ScopedLocationAnnotator(const Parser& parser, ast::Node* node = nullptr)
+    : parser_(parser), node_(node)
+  {
+    start_ = parser.location();
+  }
+
+  ~ScopedLocationAnnotator() {
+    assert(node_);
+
+    node_->start = start_;
+    node_->end = parser_.location();
+  }
+
+  ast::Node* Set(ast::Node* node) {
+    node_ = node;
+    return node;
+  }
+
+ private:
+  const Parser& parser_;
+  util::Location start_;
+  ast::Node* node_;
+};
 
 ast::NodePtr Parser::ParseModule() {
   auto node_module = std::make_unique<ast::ModuleNode>();
-  node_module->start = location();
+  ScopedLocationAnnotator sla(*this, node_module.get());
+
   while (ts_.PeekType() != Token::END_OF_FILE) {
     std::unique_ptr<ast::Node> child;
     switch (ts_.PeekType()) {
@@ -22,11 +54,12 @@ ast::NodePtr Parser::ParseModule() {
     child->parent = node_module.get();
     node_module->body.push_back(std::move(child));
   }
-  node_module->end = location();
   return std::move(node_module);
 }
 
 ast::NodePtr Parser::ParseDecl() {
+  ScopedLocationAnnotator sla(*this);
+
   auto tok_id = expect_next(Token::ID);
 
   expect_next(Token::BRACE_START);
@@ -45,20 +78,29 @@ ast::NodePtr Parser::ParseDecl() {
 
   auto node_expr = ParseExpr();
 
-  return std::make_unique<ast::DeclarationNode>(tok_id.value, args, std::move(node_expr));
+  auto node = std::make_unique<ast::DeclarationNode>(tok_id.value, args, std::move(node_expr));
+  sla.Set(node.get());
+
+  return std::move(node);
 }
 
 ast::NodePtr Parser::ParseConstantDecl() {
+  ScopedLocationAnnotator sla(*this);
+
   auto tok_id = expect_next(Token::ID_CONSTANT);
   expect_next(Token::OP_ASSIGNMENT);
   auto node_expr = ParseExpr();
-  return std::make_unique<ast::ConstantNode>(tok_id.value, std::move(node_expr));
+
+  auto node = std::make_unique<ast::ConstantNode>(tok_id.value, std::move(node_expr));
+  sla.Set(node.get());
+
+  return std::move(node);
 }
 
 ast::NodePtr Parser::ParseExpr() {
   switch (ts_.PeekType()) {
     case Token::ID:
-      return ParseIdentExpr();
+      return ParseIdent();
 // TODO(acomminos)
 //    case Token::ID_CONSTANT:
 //      return ParseConstantExpr();
@@ -87,21 +129,36 @@ ast::NodePtr Parser::ParseExpr() {
   }
 }
 
-ast::NodePtr Parser::ParseIdentExpr() {
+ast::NodePtr Parser::ParseIdent() {
   auto ident = expect_next(Token::ID);
-  switch (ts_.PeekType()) {
-    case Token::BRACE_START:
-      ts_.PutBack(ident);
-      return ParseInvoke();
-    default:
-      return std::make_unique<ast::IdExpressionNode>(ident.value);
+  auto next_type = ts_.PeekType();
+
+  ts_.PutBack(ident);
+  // If the identifier is followed by a set of arguments, parse an invocation.
+  if (next_type == Token::BRACE_START) {
+    return ParseInvoke();
+  } else {
+    // Otherwise, treat it as an identifier reference.
+    return ParseIdentExpr();
   }
 }
 
+ast::NodePtr Parser::ParseIdentExpr() {
+  ScopedLocationAnnotator sla(*this);
+
+  auto ident = expect_next(Token::ID);
+  auto node = std::make_unique<ast::IdExpressionNode>(ident.value);
+  sla.Set(node.get());
+  return std::move(node);
+}
+
 ast::NodePtr Parser::ParseGuard() {
+  ScopedLocationAnnotator sla(*this);
+
   expect_next(Token::BLOCK_START);
 
   auto guard_node = std::make_unique<ast::GuardNode>();
+  sla.Set(guard_node.get());
 
   while (ts_.PeekType() != Token::BLOCK_END) {
     bool wildcard = false;
@@ -148,6 +205,7 @@ ast::NodePtr Parser::ParseGuard() {
 
 ast::NodePtr Parser::ParseInvoke() {
   auto invoke_node = std::make_unique<ast::InvocationNode>();
+  ScopedLocationAnnotator sla(*this, invoke_node.get());
 
   auto func_tok = expect_next(Token::ID);
   invoke_node->callee = func_tok.value;
@@ -171,6 +229,7 @@ ast::NodePtr Parser::ParseInvoke() {
 
 ast::NodePtr Parser::ParseStringLiteral() {
   auto node = std::make_unique<ast::StringLiteralNode>();
+  ScopedLocationAnnotator sla(*this, node.get());
 
   auto ls = expect_next(Token::LITERAL_STRING);
   node->literal = ls.value;
@@ -180,6 +239,7 @@ ast::NodePtr Parser::ParseStringLiteral() {
 
 ast::NodePtr Parser::ParseIntegralLiteral() {
   auto node = std::make_unique<ast::IntegralLiteralNode>();
+  ScopedLocationAnnotator sla(*this, node.get());
 
   auto ln = expect_next(Token::LITERAL_INTEGRAL);
   // XXX(acomminos): ensure within int64 range

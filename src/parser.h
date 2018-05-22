@@ -14,21 +14,22 @@ class Parser {
    Parser(Logger& log, TokenStream& ts) : log_(log), ts_(ts) {}
    ast::NodePtr ParseModule();
 
+   // Returns the current position within the source file, formatted as a
+   // util::Location.
+   util::Location location() const {
+     return {ts_.file(), ts_.line(), ts_.column()};
+   }
+
  private:
    ast::NodePtr ParseDecl();
    ast::NodePtr ParseConstantDecl();
    ast::NodePtr ParseExpr();
-   ast::NodePtr ParseIdentExpr(); // parses an expression prefixed by an id
+   ast::NodePtr ParseIdent(); // parses an expression prefixed by an id
+   ast::NodePtr ParseIdentExpr();
    ast::NodePtr ParseGuard();
    ast::NodePtr ParseInvoke();
    ast::NodePtr ParseStringLiteral();
    ast::NodePtr ParseIntegralLiteral();
-
-   // Returns the current position within the source file, formatted as a
-   // util::Location.
-   inline util::Location location() {
-     return {ts_.file(), ts_.line(), ts_.column()};
-   }
 
    Token expect_next(Token::Type type) {
      auto tok = ts_.Next();
