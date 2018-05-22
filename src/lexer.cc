@@ -32,6 +32,17 @@ static bool is_numeric(char c) {
 }
 
 Token Lexer::Next() {
+  util::Location start = {file(), line(), column()};
+
+  auto token = NextImpl();
+
+  token.start = start;
+  token.end = {file(), line(), column()};
+
+  return token;
+}
+
+Token Lexer::NextImpl() {
   char c = input_.peek();
 
   // Skip whitespace and comments.

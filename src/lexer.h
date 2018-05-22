@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "logger.h"
+#include "util/location.h"
 
 namespace darlang {
 
@@ -33,6 +34,9 @@ struct Token {
     END_OF_FILE
   } type;
   std::string value;
+  // Record the source range of a token for easy lookahead buffering.
+  util::Location start;
+  util::Location end;
 };
 
 inline std::ostream& operator<<(std::ostream& os, const Token& tok) {
@@ -44,6 +48,7 @@ class Lexer {
   Lexer(Logger& log, std::istream& input, const std::string filename = "unknown")
     : log_(log), input_(input), file_(filename), line_(0), column_(0) {}
 
+  // Returns the next consumed token in the stream, with attached location data.
   Token Next();
 
   std::string file() const { return file_; }
@@ -51,6 +56,7 @@ class Lexer {
   int column() const { return column_; }
 
  private:
+  Token NextImpl();
   Token ReadIdentifier();
   Token ReadNumericLiteral();
   Token ReadStringLiteral();
@@ -128,9 +134,24 @@ class TokenStream {
     buffered_.push(t);
   }
 
-  std::string file() const { return lexer_.file(); }
-  int line() const { return lexer_.line(); }
-  int column() const { return lexer_.column(); }
+  std::string file() const {
+    if (buffered_.size() > 0) {
+      return buffered_.top().start.file;
+    }
+    return lexer_.file();
+  }
+  int line() const {
+    if (buffered_.size() > 0) {
+      return buffered_.top().start.line;
+    }
+    return lexer_.line();
+  }
+  int column() const {
+    if (buffered_.size() > 0) {
+      return buffered_.top().start.column;
+    }
+    return lexer_.column();
+  }
 
  private:
   Lexer& lexer_;

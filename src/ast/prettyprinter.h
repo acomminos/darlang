@@ -13,7 +13,7 @@ class PrettyPrinter : public Visitor {
   PrettyPrinter() : depth_(0) {}
 
   bool Module(ModuleNode& node) override {
-    pp("Module") << std::endl;
+    pp("Module", node) << std::endl;
 
     depth_++;
     for (auto& child : node.body) {
@@ -34,7 +34,7 @@ class PrettyPrinter : public Visitor {
     }
     args << "}";
 
-    pp("Declaration") << " ["
+    pp("Declaration", node) << " ["
       << "id='" << node.id << "',"
       << "args=" << args.str()
       << "]" << std::endl;
@@ -52,14 +52,14 @@ class PrettyPrinter : public Visitor {
   }
 
   bool IdExpression(IdExpressionNode& node) override {
-    pp("IdExpression") << " ["
+    pp("IdExpression", node) << " ["
       << "id='" << node.id << "'"
       << "]" << std::endl;
     return false;
   }
 
   bool IntegralLiteral(IntegralLiteralNode& node) override {
-    pp("IntegralLiteral") << " ["
+    pp("IntegralLiteral", node) << " ["
       << "literal='" << node.literal << "'"
       << "]" << std::endl;
     return false;
@@ -74,7 +74,7 @@ class PrettyPrinter : public Visitor {
   }
 
   bool Invocation(InvocationNode& node) override {
-    pp("Invocation") << " ["
+    pp("Invocation", node) << " ["
       << "callee='" << node.callee << "'"
       << "]" << std::endl;
 
@@ -89,7 +89,7 @@ class PrettyPrinter : public Visitor {
   }
 
   bool Guard(GuardNode& node) override {
-    pp("Guard") << std::endl;
+    pp("Guard", node) << std::endl;
 
     // TODO(acomminos): attrs
 
@@ -105,12 +105,15 @@ class PrettyPrinter : public Visitor {
 
  private:
   // TODO(acomminos): add attribute format
-  std::ostream& pp(const std::string name) {
+  std::ostream& pp(const std::string name, const ast::Node& node) {
     std::stringstream ss;
     for (int i = 0; i < depth_; i++) {
       ss << "| ";
     }
     ss << name;
+    ss << " "
+       << "[" << node.start.file << ":" << node.start.line << ":" << node.start.column
+       << "," << node.end.file << ":" << node.end.line << ":" << node.end.column << "]";
     return std::cout << ss.str();
   }
 
