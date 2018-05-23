@@ -52,7 +52,7 @@ Token Lexer::NextImpl() {
   }
 
   // Consume comments, up to and including the EOL.
-  if (c == '-') {
+  if (c == '#') {
     do {
       c = getchar();
     } while (c != '\n' && c != EOF);
@@ -77,7 +77,9 @@ Token Lexer::NextImpl() {
 
   getchar();
   switch (c) {
-    case '=':
+    case '-':
+      // Hyphen uniquely identifies assignment operator "->".
+      expect_next('>');
       return {Token::OP_ASSIGNMENT};
     case ';':
       return {Token::BREAK};
