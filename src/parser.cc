@@ -137,6 +137,8 @@ ast::NodePtr Parser::ParseIdent() {
   // If the identifier is followed by a set of arguments, parse an invocation.
   if (next_type == Token::BRACE_START) {
     return ParseInvoke();
+  } else if (next_type == Token::OP_BIND) {
+    return ParseBind();
   } else {
     // Otherwise, treat it as an identifier reference.
     return ParseIdentExpr();
@@ -225,6 +227,21 @@ ast::NodePtr Parser::ParseInvoke() {
   expect_next(Token::BRACE_END);
 
   return std::move(invoke_node);
+}
+
+ast::NodePtr Parser::ParseBind() {
+  ScopedLocationAnnotator sla(*this);
+
+  auto ident = expect_next(Token::ID);
+  expect_next(Token::OP_BIND);
+  auto expr = ParseExpr();
+  expect_next(Token::BREAK);
+  auto next_expr = ParseExpr();
+
+  auto node = std::make_unique<ast::BindNode>(ident.value, std::move(expr), std::move(next_expr));;
+  sla.Set(node.get());
+
+  return std::move(node);
 }
 
 ast::NodePtr Parser::ParseStringLiteral() {

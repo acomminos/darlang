@@ -19,6 +19,7 @@ struct StringLiteralNode;
 struct BooleanLiteralNode;
 struct InvocationNode;
 struct GuardNode;
+struct BindNode;
 
 typedef std::unique_ptr<Node> NodePtr;
 
@@ -35,6 +36,7 @@ struct Visitor {
   virtual bool BooleanLiteral(BooleanLiteralNode& node) { return false; }
   virtual bool Invocation(InvocationNode& node) { return false; }
   virtual bool Guard(GuardNode& node) { return false; }
+  virtual bool Bind(BindNode& node) { return false; }
 };
 
 typedef int64_t NodeID;
@@ -174,6 +176,21 @@ struct GuardNode : public Node {
   std::vector<std::pair<NodePtr, NodePtr>> cases;
   // Fallthrough case when all other cases fail.
   NodePtr wildcard_case;
+};
+
+// A node that binds a value to an identifier and evaluates the next expression.
+struct BindNode : public Node {
+  BindNode(std::string identifier, NodePtr expr, NodePtr body)
+    : identifier(identifier), expr(std::move(expr)), body(std::move(body)) {}
+
+  void Visit(Visitor& visitor) override {
+    // TODO: respect recursive request
+    visitor.Bind(*this);
+  }
+
+  std::string identifier;
+  NodePtr expr;
+  NodePtr body;
 };
 
 }  // namespace ast

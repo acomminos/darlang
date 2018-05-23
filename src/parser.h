@@ -28,6 +28,7 @@ class Parser {
    ast::NodePtr ParseIdentExpr();
    ast::NodePtr ParseGuard();
    ast::NodePtr ParseInvoke();
+   ast::NodePtr ParseBind();
    ast::NodePtr ParseStringLiteral();
    ast::NodePtr ParseIntegralLiteral();
 

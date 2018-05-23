@@ -1,4 +1,4 @@
-func() = [
-  X = euclid(10, 15);
-  Y = euclid(X, 20);
-] returns Y
+func() ->
+  X <- euclid(10, 15);
+  Y <- euclid(X, 15);
+  is(Y, 5)

@@ -57,6 +57,7 @@ class ExpressionTypeTransform : public ast::Reducer<std::shared_ptr<Typeable>> {
   bool IntegralLiteral(ast::IntegralLiteralNode& node) override;
   bool Invocation(ast::InvocationNode& node) override;
   bool Guard(ast::GuardNode& node) override;
+  bool Bind(ast::BindNode& node) override;
 
   Logger& log_;
   TypeableMap& typeables_;

@@ -160,5 +160,25 @@ bool ExpressionTypeTransform::Guard(ast::GuardNode& node) {
   return false;
 }
 
+bool ExpressionTypeTransform::Bind(ast::BindNode& node) {
+  TypeableScope bind_scope(&scope_);
+
+  // Compute the type of the identifier-bound expression, and use it in the
+  // scope of the following body.
+  auto expr_typeable = ExpressionTypeTransform(log_, typeables_, scope_).Reduce(*node.expr);
+  // TODO(acomminos): throw error if name is already bound?
+  bind_scope.Assign(node.identifier, expr_typeable.get());
+
+  auto body_typeable = ExpressionTypeTransform(log_, typeables_, bind_scope).Reduce(*node.body);
+
+  auto typeable = std::make_shared<Typeable>();
+  assert(typeable->Unify(*body_typeable));
+
+  typeables_[node.id] = typeable;
+  set_result(typeable);
+
+  return false;
+}
+
 }  // namespace typing
 }  // namespace darlang

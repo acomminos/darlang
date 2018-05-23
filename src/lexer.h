@@ -25,6 +25,7 @@ struct Token {
     BRACE_END,
     BREAK,
     OP_ASSIGNMENT,
+    OP_BIND,
     LITERAL_STRING,
     LITERAL_INTEGRAL,
     LITERAL_NUMERIC,

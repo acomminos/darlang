@@ -13,6 +13,7 @@ const char* Token::TypeNames[] = {
   "brace end",
   "break",
   "assignment",
+  "bind",
   "string literal",
   "integral literal",
   "numeric literal",
@@ -81,6 +82,9 @@ Token Lexer::NextImpl() {
       // Hyphen uniquely identifies assignment operator "->".
       expect_next('>');
       return {Token::OP_ASSIGNMENT};
+    case '<':
+      expect_next('-');
+      return {Token::OP_BIND};
     case ';':
       return {Token::BREAK};
     case '{':
