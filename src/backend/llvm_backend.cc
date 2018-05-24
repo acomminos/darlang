@@ -176,10 +176,15 @@ bool LLVMValueTransformer::Guard(ast::GuardNode& node) {
 }
 
 bool LLVMValueTransformer::Bind(ast::BindNode& node) {
-  auto expr_value = LLVMValueTransformer::Transform(node.expr);
-  auto body_value = LLVMValueTransformer::Transform(node.body);
+  auto expr_value = LLVMValueTransformer::Transform(context_, builder_, *node.expr, funcs_, symbols_, types_);
 
-  // TODO(acomminos): switch to scoped map for llvm values
+  // TODO(acomminos): switch to scoped map, this is a total hack
+  ArgumentSymbolTable scoped_table = symbols_;
+  // TODO(acomminos): enforce identifier override?
+  scoped_table[node.identifier] = expr_value;
+
+  value_ = LLVMValueTransformer::Transform(context_, builder_, *node.body, funcs_, scoped_table, types_);
+
 
   return false;
 }
