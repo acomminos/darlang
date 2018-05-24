@@ -1,4 +1,11 @@
+euclid(a,b) -> {
+  is(b,0) : a;
+        * : euclid(b, mod(a,b));
+}
+
 func() ->
-  X <- euclid(10, 15);
-  Y <- euclid(X, 15);
-  is(Y, 5)
+  x <- euclid(10, 15);
+  y <- euclid(x, 15);
+  euclid(x, y)
+
+main() -> func()

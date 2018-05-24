@@ -174,8 +174,8 @@ bool ExpressionTypeTransform::Bind(ast::BindNode& node) {
   auto typeable = std::make_shared<Typeable>();
   assert(typeable->Unify(*body_typeable));
 
-  typeables_[node.id] = typeable;
   set_result(typeable);
+  typeables_[node.id] = typeable;
 
   return false;
 }

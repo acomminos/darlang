@@ -175,5 +175,14 @@ bool LLVMValueTransformer::Guard(ast::GuardNode& node) {
   return false;
 }
 
+bool LLVMValueTransformer::Bind(ast::BindNode& node) {
+  auto expr_value = LLVMValueTransformer::Transform(node.expr);
+  auto body_value = LLVMValueTransformer::Transform(node.body);
+
+  // TODO(acomminos): switch to scoped map for llvm values
+
+  return false;
+}
+
 }  // namespace backend
 }  // namespace darlang

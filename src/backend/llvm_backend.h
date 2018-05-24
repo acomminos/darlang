@@ -94,6 +94,7 @@ class LLVMValueTransformer : public ast::Visitor {
   bool BooleanLiteral(ast::BooleanLiteralNode& node);
   bool Invocation(ast::InvocationNode& node) override;
   bool Guard(ast::GuardNode& node) override;
+  bool Bind(ast::BindNode& node) override;
 
   llvm::Value* value() { return value_; }
 
