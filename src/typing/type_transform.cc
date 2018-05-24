@@ -117,6 +117,8 @@ bool ExpressionTypeTransform::Invocation(ast::InvocationNode& node) {
       typeables_[node.id] = stub_typeable;
       return false;
     }
+    log_.Fatal(Result::Error(ErrorCode::ID_UNDECLARED, "undeclared function " + node.callee),
+               node.start);
     assert(false);
   }
 
