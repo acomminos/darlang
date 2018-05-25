@@ -53,7 +53,7 @@ bool DeclarationTypeTransform::Declaration(ast::DeclarationNode& node) {
     func_scope.Assign(node.args[i], (*arg_typeables)[i].get());
   }
 
-  auto expr_typeable = ExpressionTypeTransform(log_, typeables_, func_scope).Reduce(*node.expr);
+  auto expr_typeable = ExpressionTypeTransform(log_, typeables_, func_scope).Annotate(*node.expr);
   assert(expr_typeable);
 
   auto return_typeable = func_typeable->Solver().ConstrainYields();
@@ -62,6 +62,10 @@ bool DeclarationTypeTransform::Declaration(ast::DeclarationNode& node) {
   typeables_[node.id] = func_typeable;
 
   return false;
+}
+
+std::shared_ptr<Typeable> ExpressionTypeTransform::AnnotateChild(ast::Node& node, const TypeableScope& scope) {
+  return ExpressionTypeTransform(log_, map(), scope).Annotate(node);
 }
 
 bool ExpressionTypeTransform::IdExpression(ast::IdExpressionNode& node) {
@@ -81,7 +85,6 @@ bool ExpressionTypeTransform::IdExpression(ast::IdExpressionNode& node) {
   }
 
   set_result(id_typeable);
-  typeables_[node.id] = id_typeable;
 
   return false;
 }
@@ -95,7 +98,6 @@ bool ExpressionTypeTransform::IntegralLiteral(ast::IntegralLiteralNode& node) {
   }
 
   set_result(int_typeable);
-  typeables_[node.id] = int_typeable;
 
   return false;
 }
@@ -114,7 +116,6 @@ bool ExpressionTypeTransform::Invocation(ast::InvocationNode& node) {
       //                   typing/intrinsics.{h,cc}
       auto stub_typeable = std::make_shared<Typeable>();
       set_result(stub_typeable);
-      typeables_[node.id] = stub_typeable;
       return false;
     }
     log_.Fatal(Result::Error(ErrorCode::ID_UNDECLARED, "undeclared function " + node.callee),
@@ -129,7 +130,7 @@ bool ExpressionTypeTransform::Invocation(ast::InvocationNode& node) {
     auto& arg_typeable = *(*args)[i];
     auto& arg_expr = node.args[i];
     // Unify the callee's argument typeable against the expression used.
-    auto arg_expr_typeable = ExpressionTypeTransform(log_, typeables_, scope_).Reduce(*arg_expr);
+    auto arg_expr_typeable = AnnotateChild(*arg_expr);
 
     if (!(result = arg_typeable.Unify(*arg_expr_typeable))) {
       log_.Fatal(result, node.start);
@@ -142,7 +143,6 @@ bool ExpressionTypeTransform::Invocation(ast::InvocationNode& node) {
   }
 
   set_result(yield_typeable);
-  typeables_[node.id] = yield_typeable;
 
   return false;
 }
@@ -150,14 +150,13 @@ bool ExpressionTypeTransform::Invocation(ast::InvocationNode& node) {
 bool ExpressionTypeTransform::Guard(ast::GuardNode& node) {
   auto guard_typeable = std::make_shared<Typeable>();
   for (auto& guard_case : node.cases) {
-    auto case_typeable = ExpressionTypeTransform(log_, typeables_, scope_).Reduce(*guard_case.second);
+    auto case_typeable = AnnotateChild(*guard_case.second);
     assert(guard_typeable->Unify(*case_typeable));
   }
-  auto wildcard_typeable = ExpressionTypeTransform(log_, typeables_, scope_).Reduce(*node.wildcard_case);
+  auto wildcard_typeable = AnnotateChild(*node.wildcard_case);
   assert(guard_typeable->Unify(*wildcard_typeable));
 
   set_result(guard_typeable);
-  typeables_[node.id] = guard_typeable;
 
   return false;
 }
@@ -167,17 +166,16 @@ bool ExpressionTypeTransform::Bind(ast::BindNode& node) {
 
   // Compute the type of the identifier-bound expression, and use it in the
   // scope of the following body.
-  auto expr_typeable = ExpressionTypeTransform(log_, typeables_, scope_).Reduce(*node.expr);
+  auto expr_typeable = AnnotateChild(*node.expr);
   // TODO(acomminos): throw error if name is already bound?
   bind_scope.Assign(node.identifier, expr_typeable.get());
 
-  auto body_typeable = ExpressionTypeTransform(log_, typeables_, bind_scope).Reduce(*node.body);
+  auto body_typeable = AnnotateChild(*node.body, bind_scope);
 
   auto typeable = std::make_shared<Typeable>();
   assert(typeable->Unify(*body_typeable));
 
   set_result(typeable);
-  typeables_[node.id] = typeable;
 
   return false;
 }

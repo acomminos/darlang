@@ -47,12 +47,19 @@ class DeclarationTypeTransform : public ast::Visitor {
 
 // Recursively annotates expression nodes with typeables, and returns the
 // typeable acting as the return value for the expression.
-class ExpressionTypeTransform : public ast::Reducer<std::shared_ptr<Typeable>> {
+class ExpressionTypeTransform : public ast::Annotator<std::shared_ptr<Typeable>> {
  public:
   ExpressionTypeTransform(Logger& log, TypeableMap& typeables, const TypeableScope& scope)
-    : log_(log), typeables_(typeables), scope_(scope) {}
+    : Annotator(typeables), log_(log), scope_(scope) {}
 
  private:
+  // Recursively annotates the given child node, optionally with a modified
+  // scope.
+  std::shared_ptr<Typeable> AnnotateChild(ast::Node& node) {
+    return AnnotateChild(node, scope_);
+  }
+  std::shared_ptr<Typeable> AnnotateChild(ast::Node& node, const TypeableScope& scope);
+
   bool IdExpression(ast::IdExpressionNode& node) override;
   bool IntegralLiteral(ast::IntegralLiteralNode& node) override;
   bool Invocation(ast::InvocationNode& node) override;
@@ -60,7 +67,6 @@ class ExpressionTypeTransform : public ast::Reducer<std::shared_ptr<Typeable>> {
   bool Bind(ast::BindNode& node) override;
 
   Logger& log_;
-  TypeableMap& typeables_;
   const TypeableScope& scope_;
 };
 

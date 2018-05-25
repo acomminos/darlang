@@ -37,6 +37,23 @@ class Reducer : protected Visitor {
   T result_;
 };
 
+// A visitor that associated each node with a value.
+template <typename T>
+class Annotator : protected Reducer<T> {
+ public:
+  // Creates a new annotator, storing results into the given map.
+  Annotator(std::unordered_map<NodeID, T>& map) : map_(map) {}
+
+  T& Annotate(Node& node) {
+    return map_[node.id] = this->Reduce(node);
+  }
+
+  std::unordered_map<NodeID, T>& map() { return map_; }
+
+ private:
+  std::unordered_map<NodeID, T>& map_;
+};
+
 }  // namespace ast
 }  // namespace darlang
 
