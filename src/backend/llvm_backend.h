@@ -8,15 +8,15 @@
 #include "llvm/IR/Module.h"
 
 #include "ast/types.h"
+#include "ast/util.h"
 #include "typing/types.h"
+#include "util/scoped_map.h"
 
 namespace darlang {
 namespace backend {
 
-// Unscoped symbol table for function argument values.
-typedef std::unordered_map<std::string, llvm::Value*> ArgumentSymbolTable;
-// Global function table produced by the declaration transform.
-typedef std::unordered_map<std::string, llvm::Function*> FunctionTable;
+// Scoped symbol table for arguments, bindings, and functions.
+typedef util::ScopedMap<std::string, llvm::Value*> SymbolTable;
 // Result of the type analysis phase.
 typedef std::unordered_map<ast::NodeID, std::unique_ptr<typing::Type>> TypeMap;
 
@@ -39,39 +39,35 @@ class LLVMModuleTransformer : public ast::Visitor {
 };
 
 // Transforms top-level function and constant declarations in a module.
+// Writes traversed function definitions to the provided symbol table.
 class LLVMDeclarationTransformer : public ast::Visitor {
  public:
-  LLVMDeclarationTransformer(llvm::LLVMContext& context, llvm::Module* module, TypeMap& types)
-    : context_(context), module_(module), types_(types) {}
-
-  FunctionTable& func_table() { return func_table_; }
+  LLVMDeclarationTransformer(llvm::Module* module, TypeMap& types, SymbolTable& symbols)
+    : module_(module), types_(types), symbols_(symbols) {}
 
  private:
   bool Declaration(ast::DeclarationNode& node) override;
   bool Constant(ast::ConstantNode& node) override;
 
-  llvm::LLVMContext& context_;
   llvm::Module* module_;
-  FunctionTable func_table_;
   TypeMap& types_;
+  SymbolTable& symbols_;
 };
 
 // Generates function bodies.
 class LLVMFunctionTransformer : public ast::Visitor {
  public:
   LLVMFunctionTransformer(llvm::LLVMContext& context,
-                          llvm::Module* module,
-                          FunctionTable& func_table,
-                          TypeMap& types)
-    : context_(context), module_(module), func_table_(func_table), types_(types) {}
+                          TypeMap& types,
+                          const SymbolTable& symbols)
+    : context_(context), types_(types), symbols_(symbols) {}
 
  private:
   bool Declaration(ast::DeclarationNode& node) override;
 
   llvm::LLVMContext& context_;
-  llvm::Module* module_;
-  FunctionTable& func_table_;
   TypeMap& types_;
+  const SymbolTable& symbols_;
 };
 
 // Transforms AST nodes representing an expression into a llvm::Value* within
@@ -84,14 +80,13 @@ class LLVMValueTransformer : public ast::Visitor {
  public:
   static llvm::Value* Transform(llvm::LLVMContext& context,
                                 llvm::IRBuilder<>& builder,
-                                ast::Node& node,
-                                FunctionTable& funcs,
-                                ArgumentSymbolTable& symbols,
-                                TypeMap& types);
+                                TypeMap& types,
+                                const SymbolTable& symbols,
+                                ast::Node& node);
 
   bool IdExpression(ast::IdExpressionNode& node) override;
   bool IntegralLiteral(ast::IntegralLiteralNode& node) override;
-  bool BooleanLiteral(ast::BooleanLiteralNode& node);
+  bool BooleanLiteral(ast::BooleanLiteralNode& node) override;
   bool Invocation(ast::InvocationNode& node) override;
   bool Guard(ast::GuardNode& node) override;
   bool Bind(ast::BindNode& node) override;
@@ -100,20 +95,17 @@ class LLVMValueTransformer : public ast::Visitor {
 
  private:
   LLVMValueTransformer(llvm::LLVMContext& context, llvm::IRBuilder<>& builder,
-                       FunctionTable& funcs, ArgumentSymbolTable& symbols,
-                       TypeMap& types)
+                       TypeMap& types, const SymbolTable& symbols)
     : context_(context)
     , builder_(builder)
-    , funcs_(funcs)
-    , symbols_(symbols)
     , types_(types)
+    , symbols_(symbols)
     , value_(nullptr) {}
 
   llvm::LLVMContext& context_;
   llvm::IRBuilder<>& builder_;
-  FunctionTable& funcs_;
-  ArgumentSymbolTable& symbols_;
   TypeMap& types_;
+  const SymbolTable& symbols_;
 
   llvm::Value* value_;
 };

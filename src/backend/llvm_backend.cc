@@ -15,16 +15,15 @@ std::unique_ptr<llvm::Module> LLVMModuleTransformer::Transform(llvm::LLVMContext
 
 bool LLVMModuleTransformer::Module(ast::ModuleNode& node) {
   module_ = llvm::make_unique<llvm::Module>(node.name, context_);
+  SymbolTable symbols;
 
   // Perform an initial pass to populate function declarations.
-  LLVMDeclarationTransformer decl_transform(context_, module_.get(), types_);
+  LLVMDeclarationTransformer decl_transform(module_.get(), types_, symbols);
   for (auto& child : node.body) {
     child->Visit(decl_transform);
   }
 
-  auto& func_table = decl_transform.func_table();
-
-  LLVMFunctionTransformer func_transform(context_, module_.get(), func_table, types_);
+  LLVMFunctionTransformer func_transform(context_, types_, symbols);
   for (auto& child : node.body) {
     child->Visit(func_transform);
   }
@@ -32,32 +31,36 @@ bool LLVMModuleTransformer::Module(ast::ModuleNode& node) {
 }
 
 bool LLVMDeclarationTransformer::Declaration(ast::DeclarationNode& node) {
-  auto func_type = static_cast<llvm::FunctionType*>(LLVMTypeGenerator::Generate(context_, *types_[node.id]));
+  auto func_type = static_cast<llvm::FunctionType*>(LLVMTypeGenerator::Generate(module_->getContext(), *types_[node.id]));
   auto func = llvm::Function::Create(func_type, llvm::Function::ExternalLinkage, node.name, module_);
   // TODO(acomminos): check for duplicates
-  func_table_[node.name] = func;
+  symbols_.Assign(node.name, func);
   return false;
 }
 
 bool LLVMDeclarationTransformer::Constant(ast::ConstantNode& node) {
   // TODO(acomminos)
+  assert(false);
   return false;
 }
 
 bool LLVMFunctionTransformer::Declaration(ast::DeclarationNode& node) {
-  auto func = func_table_[node.name];
+  // FIXME(acomminos): casts make me sad.
+  auto func = static_cast<llvm::Function*>(symbols_.Lookup(node.name));
+  assert(func);
+
   auto entry_block = llvm::BasicBlock::Create(context_, "entry", func);
 
-  ArgumentSymbolTable arg_symbols;
+  int arg_idx = 0;
+  SymbolTable arg_symbols(symbols_);
   for (auto it = func->arg_begin(); it != func->arg_end(); it++) {
-    int arg_idx = arg_symbols.size();
-    arg_symbols[node.args[arg_idx]] = it;
+    arg_symbols.Assign(node.args[arg_idx++], it);
   }
 
   llvm::IRBuilder<> builder(context_);
   builder.SetInsertPoint(entry_block);
 
-  auto expr = LLVMValueTransformer::Transform(context_, builder, *node.expr, func_table_, arg_symbols, types_);
+  auto expr = LLVMValueTransformer::Transform(context_, builder, types_, arg_symbols, *node.expr);
   builder.CreateRet(expr);
   return false;
 }
@@ -65,17 +68,16 @@ bool LLVMFunctionTransformer::Declaration(ast::DeclarationNode& node) {
 /* static */
 llvm::Value* LLVMValueTransformer::Transform(llvm::LLVMContext& context,
                                              llvm::IRBuilder<>& builder,
-                                             ast::Node& node,
-                                             FunctionTable& funcs,
-                                             ArgumentSymbolTable& symbols,
-                                             TypeMap& types) {
-  LLVMValueTransformer transformer(context, builder, funcs, symbols, types);
+                                             TypeMap& types,
+                                             const SymbolTable& symbols,
+                                             ast::Node& node) {
+  LLVMValueTransformer transformer(context, builder, types, symbols);
   node.Visit(transformer);
   return transformer.value();
 }
 
 bool LLVMValueTransformer::IdExpression(ast::IdExpressionNode& node) {
-  value_ = symbols_[node.name];
+  value_ = symbols_.Lookup(node.name);
   assert(value_ != nullptr);
   return false;
 }
@@ -94,7 +96,7 @@ bool LLVMValueTransformer::BooleanLiteral(ast::BooleanLiteralNode& node) {
 bool LLVMValueTransformer::Invocation(ast::InvocationNode& node) {
   std::vector<llvm::Value*> arg_values;
   for (auto& expr : node.args) {
-    auto value = LLVMValueTransformer::Transform(context_, builder_, *expr, funcs_, symbols_, types_);
+    auto value = LLVMValueTransformer::Transform(context_, builder_, types_, symbols_, *expr);
     arg_values.push_back(value);
   }
 
@@ -102,7 +104,7 @@ bool LLVMValueTransformer::Invocation(ast::InvocationNode& node) {
   if ((intr = GetIntrinsic(node.callee)) != Intrinsic::UNKNOWN) {
     value_ = GenerateIntrinsic(intr, arg_values, builder_);
   } else {
-    auto callee = funcs_[node.callee];
+    auto callee = symbols_.Lookup(node.callee);
     assert(callee != nullptr);
 
     value_ = builder_.CreateCall(callee, arg_values);
@@ -138,7 +140,7 @@ bool LLVMValueTransformer::Guard(ast::GuardNode& node) {
 
     // Compute the expression value in the case block and branch to the terminator.
     builder_.SetInsertPoint(case_block);
-    auto expr_value = LLVMValueTransformer::Transform(context_, builder_, *guard_case.second, funcs_, symbols_, types_);
+    auto expr_value = LLVMValueTransformer::Transform(context_, builder_, types_, symbols_, *guard_case.second);
     phi_node->addIncoming(expr_value, case_block);
     builder_.CreateBr(terminal_block);
 
@@ -146,7 +148,7 @@ bool LLVMValueTransformer::Guard(ast::GuardNode& node) {
 
     // Add a conditional check to the prelude to jump to this case.
     builder_.SetInsertPoint(prelude_block);
-    auto cond_value = LLVMValueTransformer::Transform(context_, builder_, *guard_case.first, funcs_, symbols_, types_);
+    auto cond_value = LLVMValueTransformer::Transform(context_, builder_, types_, symbols_, *guard_case.first);
     if (i < node.cases.size() - 1) {
       // Create and branch to the next possible case if this case's check fails.
       // All blocks' terminators must have a defined control flow.
@@ -162,7 +164,7 @@ bool LLVMValueTransformer::Guard(ast::GuardNode& node) {
 
   // Generate the wildcard (else) block.
   builder_.SetInsertPoint(wildcard_block);
-  auto wildcard_value = LLVMValueTransformer::Transform(context_, builder_, *node.wildcard_case, funcs_, symbols_, types_);
+  auto wildcard_value = LLVMValueTransformer::Transform(context_, builder_, types_, symbols_, *node.wildcard_case);
   phi_node->addIncoming(wildcard_value, wildcard_block);
   builder_.CreateBr(terminal_block);
   parent_func->getBasicBlockList().push_back(wildcard_block);
@@ -176,16 +178,13 @@ bool LLVMValueTransformer::Guard(ast::GuardNode& node) {
 }
 
 bool LLVMValueTransformer::Bind(ast::BindNode& node) {
-  auto expr_value = LLVMValueTransformer::Transform(context_, builder_, *node.expr, funcs_, symbols_, types_);
+  auto expr_value = LLVMValueTransformer::Transform(context_, builder_, types_, symbols_, *node.expr);
 
-  // TODO(acomminos): switch to scoped map, this is a total hack
-  ArgumentSymbolTable scoped_table = symbols_;
+  SymbolTable scoped_table(symbols_);
   // TODO(acomminos): enforce identifier override?
-  scoped_table[node.identifier] = expr_value;
+  scoped_table.Assign(node.identifier, expr_value);
 
-  value_ = LLVMValueTransformer::Transform(context_, builder_, *node.body, funcs_, scoped_table, types_);
-
-
+  value_ = LLVMValueTransformer::Transform(context_, builder_, types_, scoped_table, *node.body);
   return false;
 }
 
