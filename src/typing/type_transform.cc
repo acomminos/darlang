@@ -65,10 +65,10 @@ bool DeclarationTypeTransform::Declaration(ast::DeclarationNode& node) {
 }
 
 TypeablePtr ExpressionTypeTransform::AnnotateChild(ast::Node& node, const TypeableScope& scope) {
-  return ExpressionTypeTransform(log_, map(), scope).Annotate(node);
+  return ExpressionTypeTransform(log_, annotations(), scope).Annotate(node);
 }
 
-bool ExpressionTypeTransform::IdExpression(ast::IdExpressionNode& node) {
+bool ExpressionTypeTransform::IdExpression(ast::IdExpressionNode& node, TypeablePtr& out_typeable) {
   auto id_typeable = Typeable::Create();
 
   auto scope_typeable = scope_.Lookup(node.name);
@@ -84,12 +84,12 @@ bool ExpressionTypeTransform::IdExpression(ast::IdExpressionNode& node) {
     log_.Fatal(result, node.start);
   }
 
-  set_result(id_typeable);
+  out_typeable = id_typeable;
 
   return false;
 }
 
-bool ExpressionTypeTransform::IntegralLiteral(ast::IntegralLiteralNode& node) {
+bool ExpressionTypeTransform::IntegralLiteral(ast::IntegralLiteralNode& node, TypeablePtr& out_typeable) {
   auto int_typeable = Typeable::Create();
 
   Result result;
@@ -97,12 +97,12 @@ bool ExpressionTypeTransform::IntegralLiteral(ast::IntegralLiteralNode& node) {
     log_.Fatal(result, node.start);
   }
 
-  set_result(int_typeable);
+  out_typeable = int_typeable;
 
   return false;
 }
 
-bool ExpressionTypeTransform::Invocation(ast::InvocationNode& node) {
+bool ExpressionTypeTransform::Invocation(ast::InvocationNode& node, TypeablePtr& out_typeable) {
   Result result;
   // Constrain the function typeable associated with the callee.
   // TODO(acomminos): have prepass populate toplevel functions/identifiers
@@ -114,8 +114,7 @@ bool ExpressionTypeTransform::Invocation(ast::InvocationNode& node) {
       // FIXME(acomminos): leave intrinsics unbound for now.
       //                   progress towards templating is in
       //                   typing/intrinsics.{h,cc}
-      auto stub_typeable = Typeable::Create();
-      set_result(stub_typeable);
+      out_typeable = Typeable::Create();
       return false;
     }
     log_.Fatal(Result::Error(ErrorCode::ID_UNDECLARED, "undeclared function " + node.callee),
@@ -141,12 +140,12 @@ bool ExpressionTypeTransform::Invocation(ast::InvocationNode& node) {
     log_.Fatal(result, node.start);
   }
 
-  set_result(yield_typeable);
+  out_typeable = yield_typeable;
 
   return false;
 }
 
-bool ExpressionTypeTransform::Guard(ast::GuardNode& node) {
+bool ExpressionTypeTransform::Guard(ast::GuardNode& node, TypeablePtr& out_typeable) {
   auto guard_typeable = Typeable::Create();
   for (auto& guard_case : node.cases) {
     auto case_typeable = AnnotateChild(*guard_case.second);
@@ -155,12 +154,12 @@ bool ExpressionTypeTransform::Guard(ast::GuardNode& node) {
   auto wildcard_typeable = AnnotateChild(*node.wildcard_case);
   assert(guard_typeable->Unify(*wildcard_typeable));
 
-  set_result(guard_typeable);
+  out_typeable = guard_typeable;
 
   return false;
 }
 
-bool ExpressionTypeTransform::Bind(ast::BindNode& node) {
+bool ExpressionTypeTransform::Bind(ast::BindNode& node, TypeablePtr& out_typeable) {
   TypeableScope bind_scope(&scope_);
 
   // Compute the type of the identifier-bound expression, and use it in the
@@ -174,7 +173,7 @@ bool ExpressionTypeTransform::Bind(ast::BindNode& node) {
   auto typeable = Typeable::Create();
   assert(typeable->Unify(*body_typeable));
 
-  set_result(typeable);
+  out_typeable = typeable;
 
   return false;
 }

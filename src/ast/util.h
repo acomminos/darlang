@@ -37,21 +37,71 @@ class Reducer : protected Visitor {
   T result_;
 };
 
-// A visitor that associated each node with a value.
 template <typename T>
-class Annotator : protected Reducer<T> {
+using AnnotationMap = std::unordered_map<NodeID, T>;
+
+// A visitor where each method receives a value associated with a node.
+template <typename T>
+class AnnotatedVisitor : public Visitor {
  public:
-  // Creates a new annotator, storing results into the given map.
-  Annotator(std::unordered_map<NodeID, T>& map) : map_(map) {}
+  AnnotatedVisitor(AnnotationMap<T>& annotations)
+    : annotations_(annotations) {}
 
-  T& Annotate(Node& node) {
-    return map_[node.id] = this->Reduce(node);
-  }
+  virtual bool Module(ModuleNode& node, T& arg) { return false; }
+  virtual bool Declaration(DeclarationNode& node, T& arg) { return false; }
+  virtual bool Constant(ConstantNode& node, T& arg) { return false; }
+  virtual bool IdExpression(IdExpressionNode& node, T& arg) { return false; }
+  virtual bool IntegralLiteral(IntegralLiteralNode& node, T& arg) { return false; }
+  virtual bool StringLiteral(StringLiteralNode& node, T& arg) { return false; }
+  virtual bool BooleanLiteral(BooleanLiteralNode& node, T& arg) { return false; }
+  virtual bool Invocation(InvocationNode& node, T& arg) { return false; }
+  virtual bool Guard(GuardNode& node, T& arg) { return false; }
+  virtual bool Bind(BindNode& node, T& arg) { return false; }
 
-  std::unordered_map<NodeID, T>& map() { return map_; }
+  AnnotationMap<T>& annotations() const { return annotations_; }
 
  private:
-  std::unordered_map<NodeID, T>& map_;
+  bool Module(ModuleNode& node) override final {
+    return Module(node, annotations_[node.id]);
+  }
+
+  bool Declaration(DeclarationNode& node) override final {
+    return Declaration(node, annotations_[node.id]);
+  }
+
+  bool Constant(ConstantNode& node) override final {
+    return Constant(node, annotations_[node.id]);
+  }
+
+  bool IdExpression(IdExpressionNode& node) override final {
+    return IdExpression(node, annotations_[node.id]);
+  }
+
+  bool IntegralLiteral(IntegralLiteralNode& node) override final {
+    return IntegralLiteral(node, annotations_[node.id]);
+  }
+
+  bool StringLiteral(StringLiteralNode& node) override final {
+    return StringLiteral(node, annotations_[node.id]);
+  }
+
+  bool BooleanLiteral(BooleanLiteralNode& node) override final {
+    return BooleanLiteral(node, annotations_[node.id]);
+  }
+
+  bool Invocation(InvocationNode& node) override final {
+    return Invocation(node, annotations_[node.id]);
+  }
+
+  bool Guard(GuardNode& node) override final {
+    return Guard(node, annotations_[node.id]);
+  }
+
+  bool Bind(BindNode& node) override final {
+    return Bind(node, annotations_[node.id]);
+  }
+
+  AnnotationMap<T>& annotations_;
 };
 
 }  // namespace ast

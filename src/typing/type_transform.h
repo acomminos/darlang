@@ -47,10 +47,17 @@ class DeclarationTypeTransform : public ast::Visitor {
 
 // Recursively annotates expression nodes with typeables, and returns the
 // typeable acting as the return value for the expression.
-class ExpressionTypeTransform : public ast::Annotator<TypeablePtr> {
+class ExpressionTypeTransform : public ast::AnnotatedVisitor<TypeablePtr> {
  public:
   ExpressionTypeTransform(Logger& log, TypeableMap& typeables, const TypeableScope& scope)
-    : Annotator(typeables), log_(log), scope_(scope) {}
+    : AnnotatedVisitor(typeables), log_(log), scope_(scope) {}
+
+  // Annotates the given node using this transform, and returns the resulting
+  // typeable generated.
+  TypeablePtr Annotate(ast::Node& node) {
+    node.Visit(*this);
+    return annotations().at(node.id);
+  }
 
  private:
   // Recursively annotates the given child node, optionally with a modified
@@ -60,11 +67,11 @@ class ExpressionTypeTransform : public ast::Annotator<TypeablePtr> {
   }
   TypeablePtr AnnotateChild(ast::Node& node, const TypeableScope& scope);
 
-  bool IdExpression(ast::IdExpressionNode& node) override;
-  bool IntegralLiteral(ast::IntegralLiteralNode& node) override;
-  bool Invocation(ast::InvocationNode& node) override;
-  bool Guard(ast::GuardNode& node) override;
-  bool Bind(ast::BindNode& node) override;
+  bool IdExpression(ast::IdExpressionNode& node, TypeablePtr& out_typeable) override;
+  bool IntegralLiteral(ast::IntegralLiteralNode& node, TypeablePtr& out_typeable) override;
+  bool Invocation(ast::InvocationNode& node, TypeablePtr& out_typeable) override;
+  bool Guard(ast::GuardNode& node, TypeablePtr& out_typeable) override;
+  bool Bind(ast::BindNode& node, TypeablePtr& out_typeable) override;
 
   Logger& log_;
   const TypeableScope& scope_;
