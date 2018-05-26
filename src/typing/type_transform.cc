@@ -41,10 +41,10 @@ bool TypeTransform::Module(ast::ModuleNode& node) {
 }
 
 bool DeclarationTypeTransform::Declaration(ast::DeclarationNode& node) {
-  auto func_typeable = std::make_shared<Typeable>();
+  auto func_typeable = Typeable::Create();
   global_scope_.Assign(node.name, func_typeable.get());
 
-  std::vector<std::shared_ptr<Typeable>>* arg_typeables;
+  std::vector<TypeablePtr>* arg_typeables;
   assert(func_typeable->Solver().ConstrainArguments(node.args.size(), &arg_typeables));
 
   TypeableScope func_scope(&global_scope_);
@@ -64,12 +64,12 @@ bool DeclarationTypeTransform::Declaration(ast::DeclarationNode& node) {
   return false;
 }
 
-std::shared_ptr<Typeable> ExpressionTypeTransform::AnnotateChild(ast::Node& node, const TypeableScope& scope) {
+TypeablePtr ExpressionTypeTransform::AnnotateChild(ast::Node& node, const TypeableScope& scope) {
   return ExpressionTypeTransform(log_, map(), scope).Annotate(node);
 }
 
 bool ExpressionTypeTransform::IdExpression(ast::IdExpressionNode& node) {
-  auto id_typeable = std::make_shared<Typeable>();
+  auto id_typeable = Typeable::Create();
 
   auto scope_typeable = scope_.Lookup(node.name);
   // No forward declarations permitted.
@@ -90,7 +90,7 @@ bool ExpressionTypeTransform::IdExpression(ast::IdExpressionNode& node) {
 }
 
 bool ExpressionTypeTransform::IntegralLiteral(ast::IntegralLiteralNode& node) {
-  auto int_typeable = std::make_shared<Typeable>();
+  auto int_typeable = Typeable::Create();
 
   Result result;
   if (!(result = int_typeable->Solver().ConstrainPrimitive(PrimitiveType::Int64))) {
@@ -114,16 +114,15 @@ bool ExpressionTypeTransform::Invocation(ast::InvocationNode& node) {
       // FIXME(acomminos): leave intrinsics unbound for now.
       //                   progress towards templating is in
       //                   typing/intrinsics.{h,cc}
-      auto stub_typeable = std::make_shared<Typeable>();
+      auto stub_typeable = Typeable::Create();
       set_result(stub_typeable);
       return false;
     }
     log_.Fatal(Result::Error(ErrorCode::ID_UNDECLARED, "undeclared function " + node.callee),
                node.start);
-    assert(false);
   }
 
-  std::vector<std::shared_ptr<Typeable>>* args;
+  std::vector<TypeablePtr>* args;
   assert(func_typeable->Solver().ConstrainArguments(node.args.size(), &args));
 
   for (int i = 0; i < args->size(); i++) {
@@ -137,7 +136,7 @@ bool ExpressionTypeTransform::Invocation(ast::InvocationNode& node) {
     }
   }
 
-  auto yield_typeable = std::make_shared<Typeable>();
+  auto yield_typeable = Typeable::Create();
   if (!(result = func_typeable->Solver().ConstrainYields()->Unify(*yield_typeable))) {
     log_.Fatal(result, node.start);
   }
@@ -148,7 +147,7 @@ bool ExpressionTypeTransform::Invocation(ast::InvocationNode& node) {
 }
 
 bool ExpressionTypeTransform::Guard(ast::GuardNode& node) {
-  auto guard_typeable = std::make_shared<Typeable>();
+  auto guard_typeable = Typeable::Create();
   for (auto& guard_case : node.cases) {
     auto case_typeable = AnnotateChild(*guard_case.second);
     assert(guard_typeable->Unify(*case_typeable));
@@ -172,7 +171,7 @@ bool ExpressionTypeTransform::Bind(ast::BindNode& node) {
 
   auto body_typeable = AnnotateChild(*node.body, bind_scope);
 
-  auto typeable = std::make_shared<Typeable>();
+  auto typeable = Typeable::Create();
   assert(typeable->Unify(*body_typeable));
 
   set_result(typeable);

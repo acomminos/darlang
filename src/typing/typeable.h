@@ -7,7 +7,11 @@
 namespace darlang {
 namespace typing {
 
+class Typeable;
 class TypeSolver;
+
+// A reference-counted typeable.
+typedef std::shared_ptr<Typeable> TypeablePtr;
 
 // A constrainable handle expected to resolve to a type after application of
 // union-find to referencing AST nodes.
@@ -18,6 +22,7 @@ class TypeSolver;
 // destroyed TypeSolver become invalid.
 class Typeable : public std::enable_shared_from_this<Typeable> {
  public:
+  static TypeablePtr Create();
   // Instantiates a new unbound typeable.
   Typeable();
   // Unifies a typeable into this typeable, intersecting their type solvers.
@@ -26,7 +31,7 @@ class Typeable : public std::enable_shared_from_this<Typeable> {
   TypeSolver& Solver();
  private:
   std::unique_ptr<TypeSolver> solver_;
-  std::shared_ptr<Typeable> parent_;
+  TypeablePtr parent_;
 };
 
 }  // namespace typing

@@ -4,6 +4,11 @@
 namespace darlang {
 namespace typing {
 
+/* static */
+TypeablePtr Typeable::Create() {
+  return std::make_shared<Typeable>();
+}
+
 Typeable::Typeable() : parent_(nullptr) {
   solver_ = std::make_unique<TypeSolver>();
 }

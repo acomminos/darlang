@@ -45,6 +45,24 @@ struct Result {
   std::unique_ptr<Result> child;
 };
 
+// A helper for computations that may fail.
+// XXX(acomminos): should consider using a union instead? Result::Ok() is valid.
+template <typename T>
+struct Failable {
+ // Implicit constructor for a success value.
+ Failable(T value) : value(std::move(value)), result(Result::Ok()) {}
+
+ // Implicit constructor for an error.
+ Failable(Result result) : result(result) {}
+
+ operator bool() const {
+   return result;
+ }
+
+ T value;
+ Result result;
+};
+
 }  // namespace darlang
 
 #endif  // DARLANG_SRC_ERRORS_H_

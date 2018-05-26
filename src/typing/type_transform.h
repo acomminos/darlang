@@ -16,7 +16,7 @@ namespace typing {
 typedef util::ScopedMap<std::string, Typeable*> TypeableScope;
 // Mapping of nodes to typeable annotations.
 // Owns the memory for all typeables.
-typedef std::unordered_map<ast::NodeID, std::shared_ptr<Typeable>> TypeableMap;
+typedef std::unordered_map<ast::NodeID, TypeablePtr> TypeableMap;
 // The output of the pass, storing materialized types for typeable nodes.
 typedef std::unordered_map<ast::NodeID, std::unique_ptr<Type>> TypeMap;
 
@@ -47,7 +47,7 @@ class DeclarationTypeTransform : public ast::Visitor {
 
 // Recursively annotates expression nodes with typeables, and returns the
 // typeable acting as the return value for the expression.
-class ExpressionTypeTransform : public ast::Annotator<std::shared_ptr<Typeable>> {
+class ExpressionTypeTransform : public ast::Annotator<TypeablePtr> {
  public:
   ExpressionTypeTransform(Logger& log, TypeableMap& typeables, const TypeableScope& scope)
     : Annotator(typeables), log_(log), scope_(scope) {}
@@ -55,10 +55,10 @@ class ExpressionTypeTransform : public ast::Annotator<std::shared_ptr<Typeable>>
  private:
   // Recursively annotates the given child node, optionally with a modified
   // scope.
-  std::shared_ptr<Typeable> AnnotateChild(ast::Node& node) {
+  TypeablePtr AnnotateChild(ast::Node& node) {
     return AnnotateChild(node, scope_);
   }
-  std::shared_ptr<Typeable> AnnotateChild(ast::Node& node, const TypeableScope& scope);
+  TypeablePtr AnnotateChild(ast::Node& node, const TypeableScope& scope);
 
   bool IdExpression(ast::IdExpressionNode& node) override;
   bool IntegralLiteral(ast::IntegralLiteralNode& node) override;
