@@ -2,7 +2,9 @@
 
 #include <cassert>
 #include "intrinsics.h"
-#include "logger.h"
+#include "typing/function_solver.h"
+#include "typing/primitive_solver.h"
+#include "typing/typeable.h"
 
 namespace darlang {
 namespace typing {
@@ -24,7 +26,7 @@ bool TypeTransform::Module(ast::ModuleNode& node) {
   for (auto& map_pair : typeables) {
     auto& node_id = map_pair.first;
     auto& typeable = map_pair.second;
-    auto result = typeable->Solver().Solve(types[node_id]);
+    auto result = typeable->Solve(types[node_id]);
     if (!result) {
       // TODO(acomminos): add location info
       log_.Error(result, {});
@@ -41,24 +43,25 @@ bool TypeTransform::Module(ast::ModuleNode& node) {
 }
 
 bool DeclarationTypeTransform::Declaration(ast::DeclarationNode& node) {
-  auto func_typeable = Typeable::Create();
-  global_scope_.Assign(node.name, func_typeable.get());
+  auto decl_solver = std::make_unique<FunctionSolver>(node.args.size());
+  auto decl_args = decl_solver->args();
+  auto decl_yield = decl_solver->yield();
 
-  std::vector<TypeablePtr>* arg_typeables;
-  assert(func_typeable->Solver().ConstrainArguments(node.args.size(), &arg_typeables));
+  auto func_typeable = Typeable::Create(std::move(decl_solver));
+  global_scope_.Assign(node.name, func_typeable.get());
 
   TypeableScope func_scope(&global_scope_);
   // Create typeable declarations for all argument identifiers.
   for (int i = 0; i < node.args.size(); i++) {
-    func_scope.Assign(node.args[i], (*arg_typeables)[i].get());
+    func_scope.Assign(node.args[i], decl_args[i].get());
   }
 
   auto expr_typeable = ExpressionTypeTransform(log_, typeables_, func_scope).Annotate(*node.expr);
   assert(expr_typeable);
 
-  auto return_typeable = func_typeable->Solver().ConstrainYields();
-  assert(return_typeable->Unify(*expr_typeable));
+  assert(decl_yield->Unify(expr_typeable));
 
+  // TODO(acomminos): declare func_typeable first before recursing
   typeables_[node.id] = func_typeable;
 
   return false;
@@ -80,7 +83,7 @@ bool ExpressionTypeTransform::IdExpression(ast::IdExpressionNode& node, Typeable
   }
 
   Result result;
-  if (!(result = scope_typeable->Unify(*id_typeable))) {
+  if (!(result = scope_typeable->Unify(id_typeable))) {
     log_.Fatal(result, node.start);
   }
 
@@ -90,15 +93,8 @@ bool ExpressionTypeTransform::IdExpression(ast::IdExpressionNode& node, Typeable
 }
 
 bool ExpressionTypeTransform::IntegralLiteral(ast::IntegralLiteralNode& node, TypeablePtr& out_typeable) {
-  auto int_typeable = Typeable::Create();
-
-  Result result;
-  if (!(result = int_typeable->Solver().ConstrainPrimitive(PrimitiveType::Int64))) {
-    log_.Fatal(result, node.start);
-  }
-
-  out_typeable = int_typeable;
-
+  auto int_solver = std::make_unique<PrimitiveSolver>(PrimitiveType::Int64);
+  out_typeable = Typeable::Create(std::move(int_solver));
   return false;
 }
 
@@ -121,26 +117,26 @@ bool ExpressionTypeTransform::Invocation(ast::InvocationNode& node, TypeablePtr&
                node.start);
   }
 
-  std::vector<TypeablePtr>* args;
-  assert(func_typeable->Solver().ConstrainArguments(node.args.size(), &args));
-
-  for (int i = 0; i < args->size(); i++) {
-    auto& arg_typeable = *(*args)[i];
+  // Unify each call against the underlying declaration type.
+  auto call_solver = std::make_unique<FunctionSolver>(node.args.size());
+  for (int i = 0; i < call_solver->args().size(); i++) {
+    auto& arg_typeable = call_solver->args()[i];
     auto& arg_expr = node.args[i];
     // Unify the callee's argument typeable against the expression used.
     auto arg_expr_typeable = AnnotateChild(*arg_expr);
 
-    if (!(result = arg_typeable.Unify(*arg_expr_typeable))) {
+    if (!(result = arg_typeable->Unify(arg_expr_typeable))) {
       log_.Fatal(result, node.start);
     }
   }
+  out_typeable = call_solver->yield();
 
-  auto yield_typeable = Typeable::Create();
-  if (!(result = func_typeable->Solver().ConstrainYields()->Unify(*yield_typeable))) {
+  auto call_typeable = Typeable::Create(std::move(call_solver));
+  // After constructing a constrained invokee type, unify the declaration's
+  // typeable against the caller's typeable.
+  if (!(result = func_typeable->Unify(call_typeable))) {
     log_.Fatal(result, node.start);
   }
-
-  out_typeable = yield_typeable;
 
   return false;
 }
@@ -149,10 +145,10 @@ bool ExpressionTypeTransform::Guard(ast::GuardNode& node, TypeablePtr& out_typea
   auto guard_typeable = Typeable::Create();
   for (auto& guard_case : node.cases) {
     auto case_typeable = AnnotateChild(*guard_case.second);
-    assert(guard_typeable->Unify(*case_typeable));
+    assert(guard_typeable->Unify(case_typeable));
   }
   auto wildcard_typeable = AnnotateChild(*node.wildcard_case);
-  assert(guard_typeable->Unify(*wildcard_typeable));
+  assert(guard_typeable->Unify(wildcard_typeable));
 
   out_typeable = guard_typeable;
 
@@ -171,7 +167,7 @@ bool ExpressionTypeTransform::Bind(ast::BindNode& node, TypeablePtr& out_typeabl
   auto body_typeable = AnnotateChild(*node.body, bind_scope);
 
   auto typeable = Typeable::Create();
-  assert(typeable->Unify(*body_typeable));
+  assert(typeable->Unify(body_typeable));
 
   out_typeable = typeable;
 

@@ -7,13 +7,18 @@ add_definitions(${LLVM_DEFINITIONS})
 
 set(
   DARLANG_SOURCES
+
   src/lexer.cc
   src/parser.cc
+
   src/typing/typeable.cc
-  src/typing/solver.cc
+  src/typing/primitive_solver.cc
+  src/typing/function_solver.cc
   src/typing/type_transform.cc
+
   src/backend/llvm_typer.cc
   src/backend/llvm_backend.cc
+
   src/main.cc
 )
 

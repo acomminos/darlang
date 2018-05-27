@@ -1,50 +1,59 @@
 #include "typing/typeable.h"
+#include "typing/types.h"
 #include "typing/solver.h"
 
 namespace darlang {
 namespace typing {
 
 /* static */
-TypeablePtr Typeable::Create() {
-  return std::make_shared<Typeable>();
+TypeablePtr Typeable::Create(std::unique_ptr<Solver> solver) {
+  return std::make_shared<Typeable>(std::move(solver));
 }
 
-Typeable::Typeable() : parent_(nullptr) {
-  solver_ = std::make_unique<TypeSolver>();
+Typeable::Typeable(std::unique_ptr<Solver> solver)
+  : solver_(std::move(solver)), parent_(nullptr) {
 }
 
-Result Typeable::Unify(Typeable& other) {
+Result Typeable::Unify(const TypeablePtr& other) {
   // Traverse to the roots of each of the typeables being merged.
   if (parent_) {
     return parent_->Unify(other);
   }
-  if (other.parent_) {
-    return Unify(*(other.parent_));
+  if (other->parent_) {
+    return Unify(other->parent_);
   }
 
-  // If we're the highest-level parents, expect a solver implementation.
-  assert(solver_);
-  assert(other.solver_);
-
-  // If the typeables are part of the same component, they've already been
-  // unified.
-  if (solver_ == other.solver_) {
+  // If the typeables share a common root, they are already unified.
+  if (shared_from_this() == other) {
     return Result::Ok();
   }
 
-  auto result = solver_->Unify(*other.solver_);
-  if (result) {
-    other.parent_ = shared_from_this();
-    other.solver_ = nullptr;
+  // If both typeables have bound solvers, merge the solvers.
+  if (solver_ && other->solver_) {
+    auto result = solver_->Merge(*other->solver_);
+    if (result) {
+      other->parent_ = shared_from_this();
+      other->solver_ = nullptr;
+    }
+    return result;
+  } else if (solver_) {
+    other->parent_ = shared_from_this();
+    return Result::Ok();
+  } else if (other->solver_) {
+    parent_ = other;
+    return Result::Ok();
   }
-  return result;
+
+  // If neither implementation had a solver, anchor the other typeable to this.
+  other->parent_ = shared_from_this();
+  return Result::Ok();
 }
 
-TypeSolver& Typeable::Solver() {
+Result Typeable::Solve(std::unique_ptr<Type>& out_type) {
   if (parent_) {
-    return parent_->Solver();
+    return parent_->Solve(out_type);
   }
-  return *solver_;
+  return solver_->Solve(out_type);
 }
 
 }  // namespace typing

@@ -8,7 +8,8 @@ namespace darlang {
 namespace typing {
 
 class Typeable;
-class TypeSolver;
+class Type;
+class Solver;
 
 // A reference-counted typeable.
 typedef std::shared_ptr<Typeable> TypeablePtr;
@@ -17,20 +18,21 @@ typedef std::shared_ptr<Typeable> TypeablePtr;
 // union-find to referencing AST nodes.
 //
 // shared_ptr is used rather than a single ownership hierarchy of unique_ptrs to
-// handle typeables allocated by TypeSolvers. If two TypeSolvers get unified and
-// one gets destroyed, the members/arguments/yield Typeables owned by the
-// destroyed TypeSolver become invalid.
+// handle typeables allocated by solvers. If two solvers get unified and one
+// gets destroyed, the members/arguments/yield Typeables owned by the destroyed
+// solver become invalid.
 class Typeable : public std::enable_shared_from_this<Typeable> {
  public:
-  static TypeablePtr Create();
-  // Instantiates a new unbound typeable.
-  Typeable();
+  static TypeablePtr Create(std::unique_ptr<Solver> solver = nullptr);
+  // Instantiates a new typeable with the given solver.
+  Typeable(std::unique_ptr<Solver> solver);
   // Unifies a typeable into this typeable, intersecting their type solvers.
-  Result Unify(Typeable& other);
-  // Obtains the TypeSolver determining this Typeable.
-  TypeSolver& Solver();
+  Result Unify(const TypeablePtr& other);
+  // Attempts to solve for a concrete type using the underlying solver.
+  Result Solve(std::unique_ptr<Type>& out_type);
  private:
-  std::unique_ptr<TypeSolver> solver_;
+  // null if the typeable is completely unbound.
+  std::unique_ptr<Solver> solver_;
   TypeablePtr parent_;
 };
 
