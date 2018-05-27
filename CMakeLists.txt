@@ -5,8 +5,9 @@ find_package(LLVM REQUIRED CONFIG)
 include_directories(${LLVM_INCLUDE_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
 
+# darlib: support library for darlang AST and codegen
 set(
-  DARLANG_SOURCES
+  DARLIB_SOURCES
 
   src/lexer.cc
   src/parser.cc
@@ -18,18 +19,18 @@ set(
 
   src/backend/llvm_typer.cc
   src/backend/llvm_backend.cc
-
-  src/main.cc
 )
 
-add_executable(darlang ${DARLANG_SOURCES})
-
-set_property(TARGET darlang PROPERTY CXX_STANDARD 17)
-
+add_library(darlib ${DARLIB_SOURCES})
+set_property(TARGET darlib PROPERTY CXX_STANDARD 14)
 llvm_map_components_to_libnames(llvm_libs support core)
+target_link_libraries(darlib ${llvm_libs})
+target_include_directories(darlib PUBLIC ${CMAKE_SOURCE_DIR}/src)
+target_compile_options(darlib PRIVATE -Wall)
 
-target_link_libraries(darlang ${llvm_libs})
-
-target_include_directories(darlang PUBLIC ${CMAKE_SOURCE_DIR}/src)
-
-target_compile_options(darlang PRIVATE -Wall)
+# dac: the darlang compiler
+set(DAC_SOURCES src/dac.cc)
+add_executable(dac ${DAC_SOURCES})
+set_property(TARGET dac PROPERTY CXX_STANDARD 14)
+target_include_directories(dac PUBLIC ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries(dac darlib)
