@@ -53,7 +53,12 @@ Result Typeable::Solve(std::unique_ptr<Type>& out_type) {
   if (parent_) {
     return parent_->Solve(out_type);
   }
-  return solver_->Solve(out_type);
+  if (solver_) {
+    return solver_->Solve(out_type);
+  }
+  // If we reached the root of the union-find tree and there is no solver, the
+  // typeable lacks a specialization.
+  return Result::Error(ErrorCode::TYPE_INDETERMINATE, "no specialization constrained");
 }
 
 }  // namespace typing

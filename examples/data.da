@@ -1,10 +1,7 @@
 - Structural typing example.
 - (for the record, I really like this "notes" comment style).
   - It would be a cool touch to make indentation preserve comments after a newline.
-create_user(name,email) = data {
-  name: name,
-  email: email,
-}
+create_user(name, email) = (name, email)
 
 - Example of a derived nominal type from a value constructor.
 - This would be useful for static type annotations from the user.
