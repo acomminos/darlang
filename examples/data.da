@@ -1,2 +1,6 @@
 # Example of a value constructor for a literal tuple.
-user(name, email) -> (name, email)
+user(name, email) -> (name, email, 5)
+
+main() ->
+  user(0, 1);
+  5

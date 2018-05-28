@@ -267,7 +267,7 @@ ast::NodePtr Parser::ParseTuple() {
 
   std::vector<ast::NodePtr> items;
   while (ts_.PeekType() != Token::BRACE_END) {
-    auto item_expr = ParseExpr();
+    items.push_back(ParseExpr());
     ts_.CheckNext(Token::COMMA); // Permit trailing comma.
   }
 

@@ -38,7 +38,7 @@ void LLVMTypeGenerator::Type(typing::Tuple& tuple) {
   for (auto& item_type : tuple.types()) {
     item_types.push_back(LLVMTypeGenerator::Generate(context_, *item_type));
   }
-  result_ = llvm::StructType::create(context_, item_types);
+  result_ = llvm::StructType::get(context_, item_types);
 }
 
 void LLVMTypeGenerator::Type(typing::Function& func) {
