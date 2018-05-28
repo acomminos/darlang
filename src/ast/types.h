@@ -20,6 +20,7 @@ struct BooleanLiteralNode;
 struct InvocationNode;
 struct GuardNode;
 struct BindNode;
+struct TupleNode;
 
 typedef std::unique_ptr<Node> NodePtr;
 
@@ -37,6 +38,7 @@ struct Visitor {
   virtual bool Invocation(InvocationNode& node) { return false; }
   virtual bool Guard(GuardNode& node) { return false; }
   virtual bool Bind(BindNode& node) { return false; }
+  virtual bool Tuple(TupleNode& node) { return false; }
 };
 
 typedef int64_t NodeID;
@@ -191,6 +193,17 @@ struct BindNode : public Node {
   std::string identifier;
   NodePtr expr;
   NodePtr body;
+};
+
+// An ordered sequence of values.
+struct TupleNode : public Node {
+  TupleNode(std::vector<NodePtr> items) : items(std::move(items)) {}
+
+  void Visit(Visitor& visitor) override {
+    visitor.Tuple(*this);
+  }
+
+  std::vector<NodePtr> items;
 };
 
 }  // namespace ast

@@ -72,6 +72,7 @@ class ExpressionTypeTransform : public ast::AnnotatedVisitor<TypeablePtr> {
   bool Invocation(ast::InvocationNode& node, TypeablePtr& out_typeable) override;
   bool Guard(ast::GuardNode& node, TypeablePtr& out_typeable) override;
   bool Bind(ast::BindNode& node, TypeablePtr& out_typeable) override;
+  bool Tuple(ast::TupleNode& node, TypeablePtr& out_typeable) override;
 
   Logger& log_;
   const TypeableScope& scope_;

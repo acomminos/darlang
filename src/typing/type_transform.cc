@@ -3,6 +3,7 @@
 #include <cassert>
 #include "intrinsics.h"
 #include "typing/function_solver.h"
+#include "typing/tuple_solver.h"
 #include "typing/primitive_solver.h"
 #include "typing/typeable.h"
 
@@ -171,6 +172,20 @@ bool ExpressionTypeTransform::Bind(ast::BindNode& node, TypeablePtr& out_typeabl
 
   out_typeable = typeable;
 
+  return false;
+}
+
+bool ExpressionTypeTransform::Tuple(ast::TupleNode& node, TypeablePtr& out_typeable) {
+  auto solver = std::make_unique<TupleSolver>(node.items.size());
+  auto& items = solver->items();
+  for (int i = 0; i < node.items.size(); i++) {
+    auto item_result = items[i]->Unify(AnnotateChild(*node.items[i]));
+    if (!item_result) {
+      log_.Fatal(item_result, node.items[i]->start);
+    }
+  }
+
+  out_typeable = Typeable::Create(std::move(solver));
   return false;
 }
 

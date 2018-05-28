@@ -31,6 +31,7 @@ class Parser {
    ast::NodePtr ParseBind();
    ast::NodePtr ParseStringLiteral();
    ast::NodePtr ParseIntegralLiteral();
+   ast::NodePtr ParseTuple();
 
    Token expect_next(Token::Type type) {
      auto tok = ts_.Next();

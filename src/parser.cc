@@ -107,12 +107,7 @@ ast::NodePtr Parser::ParseExpr() {
     case Token::BLOCK_START:
       return ParseGuard();
     case Token::BRACE_START:
-    {
-      expect_next(Token::BRACE_START);
-      auto subexpr = ParseExpr();
-      expect_next(Token::BRACE_END);
-      return subexpr;
-    }
+      return ParseTuple();
     case Token::LITERAL_STRING:
       return ParseStringLiteral();
     case Token::LITERAL_INTEGRAL:
@@ -261,6 +256,25 @@ ast::NodePtr Parser::ParseIntegralLiteral() {
   auto ln = expect_next(Token::LITERAL_INTEGRAL);
   // XXX(acomminos): ensure within int64 range
   node->literal = std::stoi(ln.value);
+
+  return std::move(node);
+}
+
+ast::NodePtr Parser::ParseTuple() {
+  ScopedLocationAnnotator sla(*this);
+
+  expect_next(Token::BRACE_START);
+
+  std::vector<ast::NodePtr> items;
+  while (ts_.PeekType() != Token::BRACE_END) {
+    auto item_expr = ParseExpr();
+    ts_.CheckNext(Token::COMMA); // Permit trailing comma.
+  }
+
+  expect_next(Token::BRACE_END);
+
+  auto node = std::make_unique<ast::TupleNode>(std::move(items));
+  sla.Set(node.get());
 
   return std::move(node);
 }

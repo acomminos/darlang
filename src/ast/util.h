@@ -57,6 +57,7 @@ class AnnotatedVisitor : public Visitor {
   virtual bool Invocation(InvocationNode& node, T& arg) { return false; }
   virtual bool Guard(GuardNode& node, T& arg) { return false; }
   virtual bool Bind(BindNode& node, T& arg) { return false; }
+  virtual bool Tuple(TupleNode& node, T& arg) { return false; }
 
   AnnotationMap<T>& annotations() const { return annotations_; }
 
@@ -99,6 +100,10 @@ class AnnotatedVisitor : public Visitor {
 
   bool Bind(BindNode& node) override final {
     return Bind(node, annotations_[node.id]);
+  }
+
+  bool Tuple(TupleNode& node) override final {
+    return Tuple(node, annotations_[node.id]);
   }
 
   AnnotationMap<T>& annotations_;
