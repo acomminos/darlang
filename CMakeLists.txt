@@ -14,6 +14,7 @@ set(
 
   src/typing/typeable.cc
   src/typing/primitive_solver.cc
+  src/typing/tuple_solver.cc
   src/typing/function_solver.cc
   src/typing/type_transform.cc
 

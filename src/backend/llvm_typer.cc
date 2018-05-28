@@ -33,6 +33,14 @@ void LLVMTypeGenerator::Type(typing::Primitive& prim) {
   }
 }
 
+void LLVMTypeGenerator::Type(typing::Tuple& tuple) {
+  std::vector<llvm::Type*> item_types;
+  for (auto& item_type : tuple.types()) {
+    item_types.push_back(LLVMTypeGenerator::Generate(context_, *item_type));
+  }
+  result_ = llvm::StructType::create(context_, item_types);
+}
+
 void LLVMTypeGenerator::Type(typing::Function& func) {
   llvm::Type* yield_type = LLVMTypeGenerator::Generate(context_, *func.yields());
   std::vector<llvm::Type*> arg_types(func.arguments().size());

@@ -20,8 +20,9 @@ class LLVMTypeGenerator : public typing::Type::Visitor {
   llvm::Type* result() { return result_; }
 
  private:
-  void Type(typing::Primitive& prim);
-  void Type(typing::Function& func);
+  void Type(typing::Primitive& prim) override;
+  void Type(typing::Tuple& tuple) override;
+  void Type(typing::Function& func) override;
 
   llvm::LLVMContext& context_;
   llvm::Type* result_;
