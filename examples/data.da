@@ -2,5 +2,5 @@
 user(name, email) -> (name, email, 5)
 
 main() ->
-  user(0, 1);
+  u <- user(0, 1);
   5

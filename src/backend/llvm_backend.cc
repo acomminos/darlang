@@ -188,5 +188,25 @@ bool LLVMValueTransformer::Bind(ast::BindNode& node) {
   return false;
 }
 
+bool LLVMValueTransformer::Tuple(ast::TupleNode& node) {
+  llvm::Type* tuple_type = LLVMTypeGenerator::Generate(context_, *types_[node.id]);
+  assert(tuple_type);
+
+  // TODO: add support for heap-allocated tuples
+  auto struct_addr = builder_.CreateAlloca(tuple_type);
+
+  unsigned int tuple_offset = 0;
+  for (auto& item : node.items) {
+    auto item_value = LLVMValueTransformer::Transform(context_, builder_, types_, symbols_, *item);
+
+    // TODO(acomminos): fetch tuple element pointers in aggregate
+    auto element_ptr_value = builder_.CreateStructGEP(struct_addr, tuple_offset++);
+    builder_.CreateStore(item_value, element_ptr_value);
+  }
+
+  value_ = builder_.CreateLoad(struct_addr);
+  return false;
+}
+
 }  // namespace backend
 }  // namespace darlang
