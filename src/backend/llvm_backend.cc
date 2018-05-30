@@ -194,17 +194,17 @@ bool LLVMValueTransformer::Tuple(ast::TupleNode& node) {
 
   // TODO: add support for heap-allocated tuples
   auto struct_addr = builder_.CreateAlloca(tuple_type);
+  auto struct_value = builder_.CreateLoad(struct_addr);
 
   unsigned int tuple_offset = 0;
   for (auto& item : node.items) {
     auto item_value = LLVMValueTransformer::Transform(context_, builder_, types_, symbols_, *item);
-
     // TODO(acomminos): fetch tuple element pointers in aggregate
-    auto element_ptr_value = builder_.CreateStructGEP(struct_addr, tuple_offset++);
-    builder_.CreateStore(item_value, element_ptr_value);
+    builder_.CreateInsertValue(struct_value, item_value, tuple_offset++);
   }
 
-  value_ = builder_.CreateLoad(struct_addr);
+  value_ = struct_value;
+
   return false;
 }
 
