@@ -265,9 +265,16 @@ ast::NodePtr Parser::ParseTuple() {
 
   expect_next(Token::BRACE_START);
 
-  std::vector<ast::NodePtr> items;
+  std::vector<std::tuple<std::string, ast::NodePtr>> items;
   while (ts_.PeekType() != Token::BRACE_END) {
-    items.push_back(ParseExpr());
+    // Handle the first symbol being a '~', denoting an attribute tag.
+    if (ts_.CheckNext(Token::TAG)) {
+      auto tag = expect_next(Token::ID);
+      auto expr = ParseExpr();
+      items.push_back({tag.value, std::move(expr)});
+    } else {
+      items.push_back({"", ParseExpr()});
+    }
     ts_.CheckNext(Token::COMMA); // Permit trailing comma.
   }
 

@@ -35,8 +35,9 @@ void LLVMTypeGenerator::Type(typing::Primitive& prim) {
 
 void LLVMTypeGenerator::Type(typing::Tuple& tuple) {
   std::vector<llvm::Type*> item_types;
-  for (auto& item_type : tuple.types()) {
-    item_types.push_back(LLVMTypeGenerator::Generate(context_, *item_type));
+  for (auto& tuple_item : tuple.types()) {
+    auto& type = std::get<std::unique_ptr<typing::Type>>(tuple_item);
+    item_types.push_back(LLVMTypeGenerator::Generate(context_, *type));
   }
   result_ = llvm::StructType::get(context_, item_types);
 }

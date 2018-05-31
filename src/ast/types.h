@@ -197,13 +197,13 @@ struct BindNode : public Node {
 
 // An ordered sequence of values.
 struct TupleNode : public Node {
-  TupleNode(std::vector<NodePtr> items) : items(std::move(items)) {}
+  TupleNode(std::vector<std::tuple<std::string, NodePtr>> items) : items(std::move(items)) {}
 
   void Visit(Visitor& visitor) override {
     visitor.Tuple(*this);
   }
 
-  std::vector<NodePtr> items;
+  std::vector<std::tuple<std::string, NodePtr>> items;
 };
 
 }  // namespace ast

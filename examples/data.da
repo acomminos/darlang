@@ -1,5 +1,5 @@
 # Example of a value constructor for a literal tuple.
-user(name, email) -> (name, email, 5)
+user(n, e) -> (~name n, ~email e, ~age 5)
 
 main() ->
   u <- user(0, 1);

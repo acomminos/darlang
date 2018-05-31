@@ -45,14 +45,16 @@ class Function : public Type {
 // An ordered sequence of data.
 class Tuple : public Type {
  public:
-  Tuple(std::vector<std::unique_ptr<Type>> types) : types_(std::move(types)) {}
+  typedef std::tuple<std::string, std::unique_ptr<Type>> TaggedType;
+
+  Tuple(std::vector<TaggedType> types) : types_(std::move(types)) {}
 
   void Visit(Visitor& visitor) override { visitor.Type(*this); }
 
-  const std::vector<std::unique_ptr<Type>>& types() const { return types_; }
+  const std::vector<TaggedType>& types() const { return types_; }
 
  private:
-  const std::vector<std::unique_ptr<Type>> types_;
+  const std::vector<TaggedType> types_;
 };
 
 // TODO(acomminos): make enum members consistently cased

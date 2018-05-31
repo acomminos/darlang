@@ -179,9 +179,20 @@ bool ExpressionTypeTransform::Tuple(ast::TupleNode& node, TypeablePtr& out_typea
   auto solver = std::make_unique<TupleSolver>(node.items.size());
   auto& items = solver->items();
   for (int i = 0; i < node.items.size(); i++) {
-    auto item_result = items[i]->Unify(AnnotateChild(*node.items[i]));
-    if (!item_result) {
-      log_.Fatal(item_result, node.items[i]->start);
+    auto& child_node = std::get<ast::NodePtr>(node.items[i]);
+    Result result;
+
+    // Check to make sure the tag at the item's ordinal position does not
+    // conflict with any other tag specifiers.
+    auto& child_tag = std::get<std::string>(node.items[i]);
+    if (!(result = solver->TagItem(i, child_tag))) {
+      log_.Fatal(result, child_node->start);
+    }
+
+    // Finally, unify the tuple item's type against the expression's type.
+    auto& item_typeable = std::get<TypeablePtr>(items[i]);
+    if (!(result = item_typeable->Unify(AnnotateChild(*child_node)))) {
+      log_.Fatal(result, child_node->start);
     }
   }
 

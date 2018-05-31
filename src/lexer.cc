@@ -20,6 +20,7 @@ const char* Token::TypeNames[] = {
   "comma",
   "colon",
   "wildcard",
+  "tag",
   "eof",
 };
 
@@ -101,6 +102,8 @@ Token Lexer::NextImpl() {
       return {Token::COLON};
     case '*':
       return {Token::WILDCARD};
+    case '~':
+      return {Token::TAG};
   }
 
   // Log unknown character, skip.

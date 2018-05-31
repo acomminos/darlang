@@ -32,6 +32,7 @@ struct Token {
     COMMA,
     COLON,
     WILDCARD,
+    TAG,
     END_OF_FILE
   } type;
   std::string value;

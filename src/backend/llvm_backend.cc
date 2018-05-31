@@ -198,7 +198,8 @@ bool LLVMValueTransformer::Tuple(ast::TupleNode& node) {
 
   unsigned int tuple_offset = 0;
   for (auto& item : node.items) {
-    auto item_value = LLVMValueTransformer::Transform(context_, builder_, types_, symbols_, *item);
+    auto& node = std::get<ast::NodePtr>(item);
+    auto item_value = LLVMValueTransformer::Transform(context_, builder_, types_, symbols_, *node);
     // TODO(acomminos): fetch tuple element pointers in aggregate
     builder_.CreateInsertValue(struct_value, item_value, tuple_offset++);
   }
