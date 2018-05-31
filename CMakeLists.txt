@@ -29,6 +29,21 @@ target_link_libraries(darlib ${llvm_libs})
 target_include_directories(darlib PUBLIC ${CMAKE_SOURCE_DIR}/src)
 target_compile_options(darlib PRIVATE -Wall)
 
+# darlib_test
+set(
+  DARLIB_TEST_SOURCES
+
+  src/typing/tuple_solver_test.cc
+  src/darlib_test.cc
+)
+add_executable(darlib_test ${DARLIB_TEST_SOURCES})
+set_property(TARGET darlib_test PROPERTY CXX_STANDARD 14)
+target_include_directories(darlib_test PUBLIC ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries(darlib_test darlib)
+
+enable_testing()
+add_test(NAME darlib_test COMMAND darlib_test)
+
 # dac: the darlang compiler
 set(DAC_SOURCES src/dac.cc)
 add_executable(dac ${DAC_SOURCES})
