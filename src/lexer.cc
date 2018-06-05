@@ -83,8 +83,7 @@ Token Lexer::NextImpl() {
       // Hyphen uniquely identifies assignment operator "->".
       expect_next('>');
       return {Token::OP_ASSIGNMENT};
-    case '<':
-      expect_next('-');
+    case '|':
       return {Token::OP_BIND};
     case ';':
       return {Token::BREAK};

@@ -4,8 +4,8 @@ euclid(a,b) -> {
 }
 
 func() ->
-  x <- euclid(10, 15);
-  y <- euclid(x, 15);
+  x | euclid(10, 15);
+  y | euclid(x, 15);
   euclid(x, y)
 
 main() -> func()
