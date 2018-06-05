@@ -35,7 +35,7 @@ class PrettyPrinter : public Visitor {
     args << "}";
 
     pp("Declaration", node) << " ["
-      << "id='" << node.id << "',"
+      << "name='" << node.name << "',"
       << "args=" << args.str()
       << "]" << std::endl;
 
@@ -103,6 +103,42 @@ class PrettyPrinter : public Visitor {
     return false;
   }
 
+  bool Bind(BindNode& node) override {
+    pp("Bind", node) << "[to='" << node.identifier << "']" << std::endl;
+    depth_++;
+
+    pp("Expr", *node.expr) << std::endl;
+    depth_++;
+    node.expr->Visit(*this);
+    depth_--;
+
+    pp("Body", *node.body) << std::endl;
+    depth_++;
+    node.body->Visit(*this);
+    depth_--;
+
+    depth_--;
+    return false;
+  }
+
+  bool Tuple(TupleNode& node) override {
+    pp("Tuple", node) << std::endl;
+
+    depth_++;
+    for (int i = 0; i < node.items.size(); i++) {
+      std::stringstream item_label;
+      item_label << "[" << i << "]";
+      item_label << "[label='" << std::get<std::string>(node.items[i]) << "']";
+
+      auto& child_node = std::get<ast::NodePtr>(node.items[i]);
+      pp(item_label.str(), *child_node) << std::endl;
+      depth_++;
+      child_node->Visit(*this);
+      depth_--;
+    }
+    depth_--;
+  }
+
  private:
   // TODO(acomminos): add attribute format
   std::ostream& pp(const std::string name, const ast::Node& node) {
@@ -112,8 +148,7 @@ class PrettyPrinter : public Visitor {
     }
     ss << name;
     ss << " "
-       << "[" << node.start.file << ":" << node.start.line << ":" << node.start.column
-       << "," << node.end.file << ":" << node.end.line << ":" << node.end.column << "]";
+       << "[" << node.start.file << ":" << node.start.line << ":" << node.start.column << "]";
     return std::cout << ss.str();
   }
 

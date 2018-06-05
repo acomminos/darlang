@@ -7,6 +7,7 @@
 #include "backend/llvm_backend.h"
 #include "typing/type_transform.h"
 #include "typing/module_specializer.h"
+#include "ast/prettyprinter.h"
 
 // XXX(acomminos): just for printing IR
 #include "llvm/Support/raw_ostream.h"
@@ -36,6 +37,9 @@ int main(int argc, char* argv[]) {
 
   darlang::Parser p(logger, ts);
   auto module = p.ParseModule();
+
+  darlang::ast::PrettyPrinter pp;
+  module->Visit(pp);
 
   darlang::typing::ModuleSpecializer specializer(logger, true);
   auto types = specializer.Specialize(*module);
