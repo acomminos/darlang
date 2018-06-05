@@ -10,6 +10,12 @@ llvm::Type* LLVMTypeGenerator::Generate(llvm::LLVMContext& context, typing::Type
   return generator.result();
 }
 
+llvm::Type* LLVMTypeGenerator::Generate(llvm::LLVMContext& context, typing::TypeablePtr& typeable) {
+  std::unique_ptr<typing::Type> type;
+  assert(typeable->Solve(type));
+  return Generate(context, *type);
+}
+
 LLVMTypeGenerator::LLVMTypeGenerator(llvm::LLVMContext& context) : context_(context), result_(nullptr) {
 }
 

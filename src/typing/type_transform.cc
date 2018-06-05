@@ -1,8 +1,6 @@
 #include "type_transform.h"
 
 #include <cassert>
-#include "intrinsics.h"
-#include "typing/function_solver.h"
 #include "typing/function_specializer.h"
 #include "typing/tuple_solver.h"
 #include "typing/primitive_solver.h"
@@ -11,53 +9,6 @@
 
 namespace darlang {
 namespace typing {
-
-bool TypeTransform::Module(ast::ModuleNode& node) {
-  // TODO(acomminos): add support for exports, currently assumes presence of
-  //                  main function
-
-  util::DeclarationMap decl_map = util::DeclarationMapper::Map(node);
-  Specializer specializer(log_, decl_map);
-
-  // XXX(acomminos): add skeleton typeables for ALL intrinsics
-
-  // TODO(acomminos): have main take in command-line args
-  Result res;
-  TypeablePtr main_return_type;
-  if (!(res = specializer.Specialize("main", {}, main_return_type))) {
-    log_.Fatal(res, node.start);
-  }
-
-  // Ensure that the specialized main function returns an integer.
-  auto return_solver = std::make_unique<PrimitiveSolver>(PrimitiveType::Int64);
-  auto return_type = Typeable::Create(std::move(return_solver));
-  if (!(res = return_type->Unify(main_return_type))) {
-    log_.Fatal(res, node.start);
-  }
-
-  // After building up typeable constraints, attempt to solve for concrete types.
-  TypeMap types;
-  /*
-  bool error = false;
-  for (auto& map_pair : typeables) {
-    auto& node_id = map_pair.first;
-    auto& typeable = map_pair.second;
-    auto result = typeable->Solve(types[node_id]);
-    if (!result) {
-      // TODO(acomminos): add location info
-      log_.Error(result, {});
-      error = true;
-    }
-  }
-
-  if (error) {
-    log_.Fatal("type check stage failed, stopping", node.start);
-  }
-  */
-
-  set_result(std::move(types));
-  return false;
-}
 
 TypeablePtr ExpressionTypeTransform::AnnotateChild(ast::Node& node, const TypeableScope& scope) {
   return ExpressionTypeTransform(log_, annotations(), scope, specializer_).Annotate(node);

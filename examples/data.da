@@ -3,4 +3,5 @@ user(n, e) -> (~name n, ~email e, ~age 5)
 
 main() ->
   u <- user(0, 1);
+  x <- user(0, (1)); # Example of polymorphic function specialization.
   5

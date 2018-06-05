@@ -9,7 +9,7 @@
 
 #include "ast/types.h"
 #include "ast/util.h"
-#include "typing/types.h"
+#include "typing/function_specializer.h"
 #include "util/scoped_map.h"
 
 namespace darlang {
@@ -17,8 +17,6 @@ namespace backend {
 
 // Scoped symbol table for arguments, bindings, and functions.
 typedef util::ScopedMap<std::string, llvm::Value*> SymbolTable;
-// Result of the type analysis phase.
-typedef std::unordered_map<ast::NodeID, std::unique_ptr<typing::Type>> TypeMap;
 
 class LLVMModuleTransformer : public ast::Visitor {
  public:
@@ -26,31 +24,31 @@ class LLVMModuleTransformer : public ast::Visitor {
   // llvm::Module. Requires the result of a type synthesis pass.
   //
   // Returns nullptr on failure.
-  static std::unique_ptr<llvm::Module> Transform(llvm::LLVMContext& context, TypeMap& types, ast::Node& node);
+  static std::unique_ptr<llvm::Module> Transform(llvm::LLVMContext& context, typing::SpecializationMap& specs, ast::Node& node);
 
   bool Module(ast::ModuleNode& node) override;
  private:
-  LLVMModuleTransformer(llvm::LLVMContext& context, TypeMap& types)
-    : context_(context), types_(types) {}
+  LLVMModuleTransformer(llvm::LLVMContext& context, typing::SpecializationMap& specs)
+    : context_(context), specs_(specs) {}
 
   llvm::LLVMContext& context_;
   std::unique_ptr<llvm::Module> module_;
-  TypeMap& types_;
+  typing::SpecializationMap& specs_;
 };
 
 // Transforms top-level function and constant declarations in a module.
 // Writes traversed function definitions to the provided symbol table.
 class LLVMDeclarationTransformer : public ast::Visitor {
  public:
-  LLVMDeclarationTransformer(llvm::Module* module, TypeMap& types, SymbolTable& symbols)
-    : module_(module), types_(types), symbols_(symbols) {}
+  LLVMDeclarationTransformer(llvm::Module* module, typing::SpecializationMap& specs, SymbolTable& symbols)
+    : module_(module), specs_(specs), symbols_(symbols) {}
 
  private:
   bool Declaration(ast::DeclarationNode& node) override;
   bool Constant(ast::ConstantNode& node) override;
 
   llvm::Module* module_;
-  TypeMap& types_;
+  typing::SpecializationMap& specs_;
   SymbolTable& symbols_;
 };
 
@@ -58,15 +56,15 @@ class LLVMDeclarationTransformer : public ast::Visitor {
 class LLVMFunctionTransformer : public ast::Visitor {
  public:
   LLVMFunctionTransformer(llvm::LLVMContext& context,
-                          TypeMap& types,
+                          typing::SpecializationMap& specs,
                           const SymbolTable& symbols)
-    : context_(context), types_(types), symbols_(symbols) {}
+    : context_(context), specs_(specs), symbols_(symbols) {}
 
  private:
   bool Declaration(ast::DeclarationNode& node) override;
 
   llvm::LLVMContext& context_;
-  TypeMap& types_;
+  typing::SpecializationMap& specs_;
   const SymbolTable& symbols_;
 };
 
@@ -80,7 +78,7 @@ class LLVMValueTransformer : public ast::Visitor {
  public:
   static llvm::Value* Transform(llvm::LLVMContext& context,
                                 llvm::IRBuilder<>& builder,
-                                TypeMap& types,
+                                typing::TypeableMap& types,
                                 const SymbolTable& symbols,
                                 ast::Node& node);
 
@@ -96,7 +94,7 @@ class LLVMValueTransformer : public ast::Visitor {
 
  private:
   LLVMValueTransformer(llvm::LLVMContext& context, llvm::IRBuilder<>& builder,
-                       TypeMap& types, const SymbolTable& symbols)
+                       typing::TypeableMap& types, const SymbolTable& symbols)
     : context_(context)
     , builder_(builder)
     , types_(types)
@@ -105,7 +103,7 @@ class LLVMValueTransformer : public ast::Visitor {
 
   llvm::LLVMContext& context_;
   llvm::IRBuilder<>& builder_;
-  TypeMap& types_;
+  typing::TypeableMap& types_;
   const SymbolTable& symbols_;
 
   llvm::Value* value_;

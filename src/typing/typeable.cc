@@ -61,6 +61,12 @@ Result Typeable::Solve(std::unique_ptr<Type>& out_type) {
   return Result::Error(ErrorCode::TYPE_INDETERMINATE, "no specialization constrained");
 }
 
+std::unique_ptr<Type> Typeable::Solve() {
+  std::unique_ptr<Type> type;
+  assert(Solve(type));
+  return std::move(type);
+}
+
 bool Typeable::IsSolvable() {
   std::unique_ptr<Type> stub;
   return Solve(stub);

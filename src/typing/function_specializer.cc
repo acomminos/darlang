@@ -40,17 +40,13 @@ Result Specializer::Specialize(std::string callee,
   // It's not possible for us to unify against an unspecialized set of
   // arguments, since we require solvable arguments as a precondition for
   // specialization.
-  for (const auto& spec : specs_[callee]) {
-    // Invariant: stored specializations are always solvable.
-    if (spec.func_typeable->Unify(func_typeable)) {
-      return Result::Ok();
-    }
+  if (specs_.Unify(callee, func_typeable)) {
+    return Result::Ok();
   }
 
   // If we failed to find an existing specialization for the given args, create
   // a new one with the arguments provided.
-  specs_[callee].push_back({{}, func_typeable});
-  Specialization& spec = specs_[callee].back();
+  auto& spec = specs_.Add(callee, {{}, func_typeable});
 
   // We can only instantiate a new specialization of a function if it was
   // defined in this module. Otherwise (e.g. for intrinsics, external
@@ -77,7 +73,7 @@ Result Specializer::AddExternal(std::string callee, TypeablePtr func_typeable) {
     return Result::Error(ErrorCode::TYPE_INDETERMINATE, "attempted to specialize with unsolvable typeable");
   }
 
-  specs_[callee].push_back({{}, func_typeable});
+  specs_.Add(callee, {{}, func_typeable});
 
   return Result::Ok();
 }

@@ -5,6 +5,7 @@
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Type.h"
 
+#include "typing/typeable.h"
 #include "typing/types.h"
 
 namespace darlang {
@@ -14,6 +15,7 @@ namespace backend {
 class LLVMTypeGenerator : public typing::Type::Visitor {
  public:
   static llvm::Type* Generate(llvm::LLVMContext& context, typing::Type& type);
+  static llvm::Type* Generate(llvm::LLVMContext& context, typing::TypeablePtr& typeable);
 
   LLVMTypeGenerator(llvm::LLVMContext& context);
 

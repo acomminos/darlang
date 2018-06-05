@@ -30,6 +30,10 @@ class Typeable : public std::enable_shared_from_this<Typeable> {
   Result Unify(const TypeablePtr& other);
   // Attempts to solve for a concrete type using the underlying solver.
   Result Solve(std::unique_ptr<Type>& out_type);
+  // XXX: an "unsafe" prototype of a cleaner solve API, under the expectation
+  // that all typeables are solvable. This may be the case one day, in which
+  // case this should return "UnboundType" for all invalid cases.
+  std::unique_ptr<Type> Solve();
   // Asks the solver to synthesize a type, returning true on success.
   bool IsSolvable();
 

@@ -1,5 +1,6 @@
 #include "backend/llvm_backend.h"
 #include "backend/llvm_intrinsics.h"
+#include "backend/llvm_symbol_namer.h"
 #include "backend/llvm_typer.h"
 #include "typing/solver.h"
 
@@ -7,8 +8,9 @@ namespace darlang {
 namespace backend {
 
 /* static */
-std::unique_ptr<llvm::Module> LLVMModuleTransformer::Transform(llvm::LLVMContext& context, TypeMap& types, ast::Node& node) {
-  LLVMModuleTransformer transformer(context, types);
+std::unique_ptr<llvm::Module> LLVMModuleTransformer::Transform(
+    llvm::LLVMContext& context, typing::SpecializationMap& specs, ast::Node& node) {
+  LLVMModuleTransformer transformer(context, specs);
   node.Visit(transformer);
   return std::move(transformer.module_);
 }
@@ -18,12 +20,12 @@ bool LLVMModuleTransformer::Module(ast::ModuleNode& node) {
   SymbolTable symbols;
 
   // Perform an initial pass to populate function declarations.
-  LLVMDeclarationTransformer decl_transform(module_.get(), types_, symbols);
+  LLVMDeclarationTransformer decl_transform(module_.get(), specs_, symbols);
   for (auto& child : node.body) {
     child->Visit(decl_transform);
   }
 
-  LLVMFunctionTransformer func_transform(context_, types_, symbols);
+  LLVMFunctionTransformer func_transform(context_, specs_, symbols);
   for (auto& child : node.body) {
     child->Visit(func_transform);
   }
@@ -31,10 +33,27 @@ bool LLVMModuleTransformer::Module(ast::ModuleNode& node) {
 }
 
 bool LLVMDeclarationTransformer::Declaration(ast::DeclarationNode& node) {
-  auto func_type = static_cast<llvm::FunctionType*>(LLVMTypeGenerator::Generate(module_->getContext(), *types_[node.id]));
-  auto func = llvm::Function::Create(func_type, llvm::Function::ExternalLinkage, node.name, module_);
-  // TODO(acomminos): check for duplicates
-  symbols_.Assign(node.name, func);
+  auto func_specs = specs_.Get(node.name);
+
+  // Only allow one specialization for monomorphic functions.
+  if (!node.polymorphic) {
+    assert(func_specs.size() == 1);
+  }
+  // TODO(acomminos): warn about empty func_specs?
+
+  for (auto& spec : func_specs) {
+    std::string symbol_name;
+    if (node.polymorphic) {
+      symbol_name = LLVMSymbolNamer::Declaration(node.name, *spec.func_typeable->Solve());
+    } else {
+      symbol_name = node.name;
+    }
+
+    auto func_type = static_cast<llvm::FunctionType*>(LLVMTypeGenerator::Generate(module_->getContext(), spec.func_typeable));
+    auto func = llvm::Function::Create(func_type, llvm::Function::ExternalLinkage, symbol_name, module_);
+    // TODO(acomminos): check for duplicates, assign using symbol name
+    symbols_.Assign(symbol_name, func);
+  }
   return false;
 }
 
@@ -45,30 +64,47 @@ bool LLVMDeclarationTransformer::Constant(ast::ConstantNode& node) {
 }
 
 bool LLVMFunctionTransformer::Declaration(ast::DeclarationNode& node) {
-  // FIXME(acomminos): casts make me sad.
-  auto func = static_cast<llvm::Function*>(symbols_.Lookup(node.name));
-  assert(func);
+  auto func_specs = specs_.Get(node.name);
 
-  auto entry_block = llvm::BasicBlock::Create(context_, "entry", func);
-
-  int arg_idx = 0;
-  SymbolTable arg_symbols(symbols_);
-  for (auto it = func->arg_begin(); it != func->arg_end(); it++) {
-    arg_symbols.Assign(node.args[arg_idx++], it);
+  // Only allow one specialization for monomorphic functions.
+  if (!node.polymorphic) {
+    assert(func_specs.size() == 1);
   }
 
-  llvm::IRBuilder<> builder(context_);
-  builder.SetInsertPoint(entry_block);
+  // TODO(acomminos): warn about empty func_specs?
+  for (auto& spec : func_specs) {
+    std::string symbol_name;
+    if (node.polymorphic) {
+      symbol_name = LLVMSymbolNamer::Declaration(node.name, *spec.func_typeable->Solve());
+    } else {
+      symbol_name = node.name;
+    }
 
-  auto expr = LLVMValueTransformer::Transform(context_, builder, types_, arg_symbols, *node.expr);
-  builder.CreateRet(expr);
+    // FIXME(acomminos): casts make me sad.
+    auto func = static_cast<llvm::Function*>(symbols_.Lookup(symbol_name));
+    assert(func);
+
+    auto entry_block = llvm::BasicBlock::Create(context_, "entry", func);
+
+    int arg_idx = 0;
+    SymbolTable arg_symbols(symbols_);
+    for (auto it = func->arg_begin(); it != func->arg_end(); it++) {
+      arg_symbols.Assign(node.args[arg_idx++], it);
+    }
+
+    llvm::IRBuilder<> builder(context_);
+    builder.SetInsertPoint(entry_block);
+
+    auto expr = LLVMValueTransformer::Transform(context_, builder, spec.typeables, arg_symbols, *node.expr);
+    builder.CreateRet(expr);
+  }
   return false;
 }
 
 /* static */
 llvm::Value* LLVMValueTransformer::Transform(llvm::LLVMContext& context,
                                              llvm::IRBuilder<>& builder,
-                                             TypeMap& types,
+                                             typing::TypeableMap& types,
                                              const SymbolTable& symbols,
                                              ast::Node& node) {
   LLVMValueTransformer transformer(context, builder, types, symbols);
@@ -101,10 +137,25 @@ bool LLVMValueTransformer::Invocation(ast::InvocationNode& node) {
   }
 
   Intrinsic intr;
+  llvm::Value* callee;
   if ((intr = GetIntrinsic(node.callee)) != Intrinsic::UNKNOWN) {
     value_ = GenerateIntrinsic(intr, arg_values, builder_);
+  } else if ((callee = symbols_.Lookup(node.callee))) {
+    // Use the unobfuscated symbol name, in case this is a monomorphic export or
+    // the main function.
+    value_ = builder_.CreateCall(callee, arg_values);
   } else {
-    auto callee = symbols_.Lookup(node.callee);
+    // Otherwise, try to generate a call to the appropriate specialization by
+    // deriving it from argument types and the callee name.
+    //
+    // TODO(acomminos): make simpler, perhaps by leveraging typeable linkage?
+    std::vector<std::unique_ptr<typing::Type>> arg_types;
+    for (auto& arg_node : node.args) {
+      auto arg_typeable = types_[arg_node->id];
+      arg_types.push_back(arg_typeable->Solve());
+    }
+    auto symbol_name = LLVMSymbolNamer::Call(node.callee, arg_types);
+    auto callee = symbols_.Lookup(symbol_name);
     assert(callee != nullptr);
 
     value_ = builder_.CreateCall(callee, arg_values);
@@ -126,7 +177,7 @@ bool LLVMValueTransformer::Guard(ast::GuardNode& node) {
   // Insert a phi node as the first instruction in the terminal block.
   builder_.SetInsertPoint(terminal_block);
 
-  llvm::Type* guard_type = LLVMTypeGenerator::Generate(context_, *types_[node.id]);
+  llvm::Type* guard_type = LLVMTypeGenerator::Generate(context_, types_[node.id]);
   assert(guard_type);
 
   auto phi_node = builder_.CreatePHI(guard_type, 1 + node.cases.size());
@@ -189,7 +240,7 @@ bool LLVMValueTransformer::Bind(ast::BindNode& node) {
 }
 
 bool LLVMValueTransformer::Tuple(ast::TupleNode& node) {
-  llvm::Type* tuple_type = LLVMTypeGenerator::Generate(context_, *types_[node.id]);
+  llvm::Type* tuple_type = LLVMTypeGenerator::Generate(context_, types_[node.id]);
   assert(tuple_type);
 
   // TODO: add support for heap-allocated tuples

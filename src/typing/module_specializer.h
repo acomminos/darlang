@@ -13,12 +13,12 @@ class ModuleSpecializer : public ast::Visitor {
  public:
   ModuleSpecializer(Logger& log, bool is_program);
 
-  std::unordered_map<std::string, SpecializationList>& Specialize(ast::Node& node);
+  SpecializationMap& Specialize(ast::Node& node);
 
   bool Module(ast::ModuleNode& node) override;
 
  private:
-  std::unordered_map<std::string, SpecializationList> specs_;
+  SpecializationMap specs_;
   Logger& log_;
   // If true, specializes from the "main" function as well.
   bool is_program_;

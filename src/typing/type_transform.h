@@ -17,19 +17,8 @@ typedef util::ScopedMap<std::string, Typeable*> TypeableScope;
 // Mapping of nodes to typeable annotations.
 // Owns the memory for all typeables.
 typedef std::unordered_map<ast::NodeID, TypeablePtr> TypeableMap;
-// The output of the pass, storing materialized types for typeable nodes.
-typedef std::unordered_map<ast::NodeID, std::unique_ptr<Type>> TypeMap;
 
 class Specializer;
-
-// Traverses the given AST node, solving for a valid type assignment.
-class TypeTransform : public ast::Reducer<TypeMap> {
- public:
-  TypeTransform(Logger& log) : log_(log) {}
-  bool Module(ast::ModuleNode& node) override;
- private:
-  Logger& log_;
-};
 
 // Recursively annotates expression nodes with typeables, and returns the
 // typeable acting as the return value for the expression.

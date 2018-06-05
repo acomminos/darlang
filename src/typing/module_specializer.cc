@@ -6,8 +6,7 @@ namespace darlang::typing {
 ModuleSpecializer::ModuleSpecializer(Logger& log, bool is_program)
   : log_(log), is_program_(is_program) {}
 
-std::unordered_map<std::string, SpecializationList>& ModuleSpecializer::Specialize(
-    ast::Node& node) {
+SpecializationMap& ModuleSpecializer::Specialize(ast::Node& node) {
   node.Visit(*this);
   return specs_;
 }

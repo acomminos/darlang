@@ -6,6 +6,8 @@
 #include "typing/typeable.h"
 #include "util/declaration_mapper.h"
 
+#include <list>
+
 namespace darlang::typing {
 
 // A specialization consists of a complete type materialization of a
@@ -15,6 +17,40 @@ namespace darlang::typing {
 struct Specialization {
   TypeableMap typeables;
   TypeablePtr func_typeable;
+};
+
+// A collection of specializations for funtions in a module, mapping each
+// specialized function (both polymorphic and monomorphic) to a materializable
+// typeable.
+class SpecializationMap {
+ public:
+  // Returns the list of specializations for the provided function.
+  std::list<Specialization> Get(std::string function) {
+    return specs_[function];
+  }
+
+  // Associates a specialization with a function, returning a reference to the
+  // added specialization.
+  Specialization& Add(std::string function, Specialization spec) {
+    // TODO(acomminos): check orthogonality with all known specializations
+    specs_[function].push_back(spec);
+    // References are not invalidated on rehash, safe to return.
+    return specs_[function].back();
+  }
+
+  // Attempts to find a specialization compatible with the provided function
+  // typeable, and unifies against it. Returns true on success.
+  bool Unify(std::string function, TypeablePtr func_typeable) {
+    for (const auto& spec : specs_[function]) {
+      // Invariant: stored specializations are always solvable.
+      if (spec.func_typeable->Unify(func_typeable)) {
+        return true;
+      }
+    }
+    return false;
+  }
+ private:
+  std::unordered_map<std::string, std::list<Specialization>> specs_;
 };
 
 // A polymorphic solver for functions in a module.
@@ -34,7 +70,7 @@ class Specializer {
   // FunctionSolver, and fully materializable (constrained).
   Result AddExternal(std::string callee, TypeablePtr func_typeable);
 
-  std::unordered_map<std::string, std::vector<Specialization>> specs() const {
+  SpecializationMap specs() const {
     return specs_;
   }
 
@@ -43,7 +79,7 @@ class Specializer {
   // A mapping from function identifiers to AST nodes within a module.
   const util::DeclarationMap decl_nodes_;
   // The set of all known specializations for each declared function.
-  std::unordered_map<std::string, std::vector<Specialization>> specs_;
+  SpecializationMap specs_;
 };
 
 // A annotator that attempts to materialize the call graph rooted at a given
