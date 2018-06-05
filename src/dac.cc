@@ -15,6 +15,8 @@
 
 int main(int argc, char* argv[]) {
   llvm::cl::opt<std::string> input_file(llvm::cl::Positional, llvm::cl::desc("<input file>"), llvm::cl::init("-"));
+  llvm::cl::opt<bool> print_ast("print-ast", llvm::cl::desc("pretty prints the AST instead of doing anything useful"), llvm::cl::init(false));
+
   llvm::cl::ParseCommandLineOptions(argc, argv);
 
   darlang::Logger logger(std::cerr);
@@ -38,8 +40,11 @@ int main(int argc, char* argv[]) {
   darlang::Parser p(logger, ts);
   auto module = p.ParseModule();
 
-  darlang::ast::PrettyPrinter pp;
-  module->Visit(pp);
+  if (print_ast) {
+    darlang::ast::PrettyPrinter pp;
+    module->Visit(pp);
+    return 0;
+  }
 
   darlang::typing::ModuleSpecializer specializer(logger, true);
   auto types = specializer.Specialize(*module);
