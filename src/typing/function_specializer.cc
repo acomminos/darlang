@@ -1,4 +1,5 @@
 #include "typing/function_specializer.h"
+#include "typing/function_solver.h"
 
 namespace darlang::typing {
 
@@ -10,9 +11,12 @@ Specializer::Specializer(Logger& log, const util::DeclarationMap decl_nodes)
 
 Result Specializer::Specialize(std::string callee,
                                std::vector<TypeablePtr> args,
-                               TypeablePtr yield) {
-  // TODO(acomminos): only check this in debug mode?
-  for (const auto& arg : args) {
+                               TypeablePtr& out_yield) {
+  auto solver = std::make_unique<FunctionSolver>(args.size());
+  TypeablePtr func_yield = solver->yield();
+
+  for (int i = 0; i < args.size(); i++) {
+    const auto& arg = args[i];
     // FIXME(acomminos): add a better way to determine if a typeable is
     //                   appropriately constrained- should all solvers be
     //                   solvable by definition? this makes sense, even for
@@ -20,40 +24,32 @@ Result Specializer::Specialize(std::string callee,
     if (!arg->IsSolvable()) {
       return Result::Error(ErrorCode::TYPE_INDETERMINATE, "attempted to specialize with unsolved arg");
     }
+
+    // All arguments should unify into our new solver, which is unconstrained.
+    assert(solver->args()[i]->Unify(arg));
   }
+
+  // Upon successful unification, the solver's yield value will be unioned with
+  // func_yield.
+  out_yield = func_yield;
+
+  // Use a new function solver backed typeable.
+  TypeablePtr func_typeable = Typeable::Create(std::move(solver));
 
   // Attempt to unify against all known specializations for this callee.
   // It's not possible for us to unify against an unspecialized set of
   // arguments, since we require solvable arguments as a precondition for
   // specialization.
   for (const auto& spec : specs_[callee]) {
-    bool spec_success = true;
-    assert(args.size() == spec.args.size());
-    for (int i = 0; i < args.size(); i++) {
-      // TODO(acomminos): attempt unification idempotently/transactionally?
-      //                  although greedy unification may not affect the output,
-      //                  it's still weird to have one callee argument unify
-      //                  against multiple specializations' typeables.
-      if (!args[i]->Unify(spec.args[i])) {
-        spec_success = false;
-        break;
-      }
-    }
-
-    if (spec_success) {
-      // After unifying all arguments successfully, we can unify the yielded
-      // value and return.
-      Result res;
-      if (!(res = yield->Unify(spec.yield))) {
-        return res;
-      }
+    // Invariant: stored specializations are always solvable.
+    if (spec.func_typeable->Unify(func_typeable)) {
       return Result::Ok();
     }
   }
 
   // If we failed to find an existing specialization for the given args, create
   // a new one with the arguments provided.
-  specs_[callee].push_back({{}, args, yield});
+  specs_[callee].push_back({{}, func_typeable});
   Specialization& spec = specs_[callee].back();
 
   // We can only instantiate a new specialization of a function if it was
@@ -76,17 +72,12 @@ Result Specializer::Specialize(std::string callee,
   return Result::Ok();
 }
 
-Result Specializer::AddExternal(std::string callee, std::vector<TypeablePtr> args, TypeablePtr yield) {
-  for (const auto& arg : args) {
-    if (!arg->IsSolvable()) {
-      return Result::Error(ErrorCode::TYPE_INDETERMINATE, "attempted to specialize with unsolved arg");
-    }
-  }
-  if (!yield->IsSolvable()) {
-    return Result::Error(ErrorCode::TYPE_INDETERMINATE, "attempted to specialize with unsolved yield");
+Result Specializer::AddExternal(std::string callee, TypeablePtr func_typeable) {
+  if (!func_typeable->IsSolvable()) {
+    return Result::Error(ErrorCode::TYPE_INDETERMINATE, "attempted to specialize with unsolvable typeable");
   }
 
-  specs_[callee].push_back({{}, args, yield});
+  specs_[callee].push_back({{}, func_typeable});
 
   return Result::Ok();
 }
@@ -101,12 +92,17 @@ FunctionSpecializer::FunctionSpecializer(Logger& log,
 }
 
 bool FunctionSpecializer::Declaration(ast::DeclarationNode& node) {
-  assert(spec_.args.size() == node.args.size());
+  auto solver = std::make_unique<FunctionSolver>(node.args.size());
+  std::vector<TypeablePtr> args = solver->args();
+  TypeablePtr yield = solver->yield();
+
+  auto func_typeable = Typeable::Create(std::move(solver));
+  assert(spec_.func_typeable->Unify(func_typeable));
 
   TypeableScope arg_scope;
   for (int i = 0; i < node.args.size(); i++) {
     std::string arg_name = node.args[i];
-    arg_scope.Assign(arg_name, spec_.args[i].get());
+    arg_scope.Assign(arg_name, args[i].get());
   }
 
   // Function-local and specialization-local typeables.
@@ -116,9 +112,9 @@ bool FunctionSpecializer::Declaration(ast::DeclarationNode& node) {
   // before calls, we can easily exit a cycle by comparing specializations.
   TypeableMap& spec_types = spec_.typeables;
   ExpressionTypeTransform ett(log_, spec_types, arg_scope, specializer_);
-  auto func_typeable = ett.Annotate(*node.expr);
+  auto expr_typeable = ett.Annotate(*node.expr);
 
-  result_ = func_typeable->Unify(spec_.yield);
+  result_ = expr_typeable->Unify(yield);
 
   return false;
 }

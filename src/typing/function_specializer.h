@@ -10,12 +10,11 @@ namespace darlang::typing {
 
 // A specialization consists of a complete type materialization of a
 // (potentially) polymorphic function. It consists of a mapping of function
-// nodes to types, as well as typeables that map to the specialization's
-// argument and yield types.
+// nodes to types, as well as a typeable backed by a FunctionSolver with
+// concrete args.
 struct Specialization {
   TypeableMap typeables;
-  std::vector<TypeablePtr> args;
-  TypeablePtr yield;
+  TypeablePtr func_typeable;
 };
 
 // A polymorphic solver for functions in a module.
@@ -25,14 +24,15 @@ class Specializer {
 
   // Attempts to synthesize a specialization of a callee based on materialized
   // argument types. Unifies all parameters against the created implementation.
+  // Returns a typeable representing the type of the function's return value.
   Result Specialize(std::string callee,
                     std::vector<TypeablePtr> args,
-                    TypeablePtr yield);
+                    TypeablePtr& out_yield);
 
   // Declares the existence of an externally-implemented function that satisfies
-  // the provided typeable values. Both `args` and `yield` must be fully
-  // constrained.
-  Result AddExternal(std::string callee, std::vector<TypeablePtr> args, TypeablePtr yield);
+  // the provided typeable values. Provided typeable should be backed by a
+  // FunctionSolver, and fully materializable (constrained).
+  Result AddExternal(std::string callee, TypeablePtr func_typeable);
 
   std::unordered_map<std::string, std::vector<Specialization>> specs() const {
     return specs_;

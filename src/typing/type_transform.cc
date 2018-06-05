@@ -19,11 +19,21 @@ bool TypeTransform::Module(ast::ModuleNode& node) {
   util::DeclarationMap decl_map = util::DeclarationMapper::Map(node);
   Specializer specializer(log_, decl_map);
 
-  // XXX(acomminos): add skeleton intrinsics
+  // XXX(acomminos): add skeleton typeables for ALL intrinsics
 
-  // TODO(acomminos): constrain main: void -> int
-  TypeablePtr main_ret = Typeable::Create(std::make_unique<PrimitiveSolver>(PrimitiveType::Int64));
-  specializer.Specialize("main", {}, main_ret);
+  // TODO(acomminos): have main take in command-line args
+  Result res;
+  TypeablePtr main_return_type;
+  if (!(res = specializer.Specialize("main", {}, main_return_type))) {
+    log_.Fatal(res, node.start);
+  }
+
+  // Ensure that the specialized main function returns an integer.
+  auto return_solver = std::make_unique<PrimitiveSolver>(PrimitiveType::Int64);
+  auto return_type = Typeable::Create(std::move(return_solver));
+  if (!(res = return_type->Unify(main_return_type))) {
+    log_.Fatal(res, node.start);
+  }
 
   // After building up typeable constraints, attempt to solve for concrete types.
   TypeMap types;
