@@ -16,6 +16,7 @@ set(
   src/typing/primitive_solver.cc
   src/typing/tuple_solver.cc
   src/typing/function_solver.cc
+  src/typing/function_specializer.cc
   src/typing/type_transform.cc
 
   src/backend/llvm_typer.cc

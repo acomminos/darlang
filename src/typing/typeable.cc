@@ -61,5 +61,10 @@ Result Typeable::Solve(std::unique_ptr<Type>& out_type) {
   return Result::Error(ErrorCode::TYPE_INDETERMINATE, "no specialization constrained");
 }
 
+bool Typeable::IsSolvable() {
+  std::unique_ptr<Type> stub;
+  return Solve(stub);
+}
+
 }  // namespace typing
 }  // namespace darlang

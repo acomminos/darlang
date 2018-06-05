@@ -4,23 +4,20 @@ namespace darlang::typing {
 
 using util::DeclarationMap;
 
-/* static */
-Result FunctionSpecializer::Specialize(
-    std::string callee,
-    const std::vector<TypeablePtr> args,
-    const TypeablePtr yield,
-    Logger& log,
-    const DeclarationMap& decl_nodes,
-    std::unordered_map<std::string, std::vector<Specialization>>& specializations) {
+Specializer::Specializer(Logger& log, const util::DeclarationMap decl_nodes)
+  : log_(log), decl_nodes_(decl_nodes) {
+}
 
+Result Specializer::Specialize(std::string callee,
+                               std::vector<TypeablePtr> args,
+                               TypeablePtr yield) {
   // TODO(acomminos): only check this in debug mode?
   for (const auto& arg : args) {
-    std::unique_ptr<Type> stub;
     // FIXME(acomminos): add a better way to determine if a typeable is
     //                   appropriately constrained- should all solvers be
     //                   solvable by definition? this makes sense, even for
     //                   tuple solving (where names can be undefined).
-    if (!arg->Solve(stub)) {
+    if (!arg->IsSolvable()) {
       return Result::Error(ErrorCode::TYPE_INDETERMINATE, "attempted to specialize with unsolved arg");
     }
   }
@@ -56,14 +53,22 @@ Result FunctionSpecializer::Specialize(
 
   // If we failed to find an existing specialization for the given args, create
   // a new one with the arguments provided.
-  Specialization& spec = specs_[callee].emplace({}, args, yield);
-  auto& node = decl_nodes[callee];
+  specs_[callee].push_back({{}, args, yield});
+  Specialization& spec = specs_[callee].back();
 
-  FunctionSpecializer specializer(spec, log, decl_nodes, specs);
-  node.Visit(specializer);
+  // We can only instantiate a new specialization of a function if it was
+  // defined in this module. Otherwise (e.g. for intrinsics, external
+  // references) their code is already generated and we cannot continue.
+  auto node = decl_nodes_.find(callee);
+  if (node == decl_nodes_.end()) {
+    return Result::Error(ErrorCode::ID_UNDECLARED, "could not specialize external function " + callee);
+  }
 
-  if (!specializer.result()) {
-    return specializer.result();
+  FunctionSpecializer func_specializer(log_, *this, spec);
+  node->second->Visit(func_specializer);
+
+  if (!func_specializer.result()) {
+    return func_specializer.result();
   }
 
   // TODO(acomminos): directly materialize type here?
@@ -71,24 +76,37 @@ Result FunctionSpecializer::Specialize(
   return Result::Ok();
 }
 
-FunctionSpecializer::FunctionSpecializer(Specialization& spec,
-                                         Logger& log,
-                                         const DeclarationMap& decl_nodes,
-                                         std::unordered_map<Specialization, TypeableMap>& specs)
-  : current_spec_(spec)
-  , log_(log)
-  , decl_nodes_(decl_nodes)
-  , specs_(specs)
+Result Specializer::AddExternal(std::string callee, std::vector<TypeablePtr> args, TypeablePtr yield) {
+  for (const auto& arg : args) {
+    if (!arg->IsSolvable()) {
+      return Result::Error(ErrorCode::TYPE_INDETERMINATE, "attempted to specialize with unsolved arg");
+    }
+  }
+  if (!yield->IsSolvable()) {
+    return Result::Error(ErrorCode::TYPE_INDETERMINATE, "attempted to specialize with unsolved yield");
+  }
+
+  specs_[callee].push_back({{}, args, yield});
+
+  return Result::Ok();
+}
+
+FunctionSpecializer::FunctionSpecializer(Logger& log,
+                                         Specializer& specializer,
+                                         Specialization& spec)
+  : log_(log)
+  , specializer_(specializer)
+  , spec_(spec)
 {
 }
 
-bool FunctionSpecializer::Declaration(DeclarationNode& node) {
-  assert(current_spec_.args.size() == node.args.size());
+bool FunctionSpecializer::Declaration(ast::DeclarationNode& node) {
+  assert(spec_.args.size() == node.args.size());
 
   TypeableScope arg_scope;
   for (int i = 0; i < node.args.size(); i++) {
     std::string arg_name = node.args[i];
-    arg_scope.Assign(arg_name, current_spec_.args[i]);
+    arg_scope.Assign(arg_name, spec_.args[i].get());
   }
 
   // Function-local and specialization-local typeables.
@@ -96,11 +114,11 @@ bool FunctionSpecializer::Declaration(DeclarationNode& node) {
   // We set this prior to performing any type substitution so that we can avoid
   // entering a cycle of callee resolution. As long as we resolve any bindings
   // before calls, we can easily exit a cycle by comparing specializations.
-  TypeableMap& spec_types = current_spec_.typeables;
-  ExpressionTypeTransform ett(log_, spec_types, arg_scope, specs_);
-  auto func_typeable = ett.Annotate(node.expr);
+  TypeableMap& spec_types = spec_.typeables;
+  ExpressionTypeTransform ett(log_, spec_types, arg_scope, specializer_);
+  auto func_typeable = ett.Annotate(*node.expr);
 
-  result_ = func_typeable.Unify(current_spec_.yield);
+  result_ = func_typeable->Unify(spec_.yield);
 
   return false;
 }

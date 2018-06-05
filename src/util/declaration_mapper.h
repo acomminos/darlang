@@ -14,20 +14,21 @@ class DeclarationMapper : public ast::Visitor {
  public:
   static DeclarationMap Map(ast::Node& module_node) {
     DeclarationMapper mapper;
-    module_node.Visit(&mapper);
+    module_node.Visit(mapper);
     return mapper.map();
   }
 
-  bool Module(ModuleNode& node) {
+  bool Module(ast::ModuleNode& node) {
     for (auto& child : node.body) {
       child->Visit(*this);
     }
     return false;
   }
 
-  bool Declaration(DeclarationNode& node) {
+  bool Declaration(ast::DeclarationNode& node) {
     assert(!map_[node.name]);
     map_[node.name] = &node;
+    return false;
   }
 
   DeclarationMap map() const { return map_; }

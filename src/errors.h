@@ -21,11 +21,11 @@ enum class ErrorCode {
 
 struct Result {
   static Result Ok() {
-    return {ErrorCode::OK, "", nullptr};
+    return {ErrorCode::OK, ""};
   }
 
-  static Result Error(ErrorCode code, const std::string message = "", std::unique_ptr<Result> child = nullptr) {
-    return {code, message, std::move(child)};
+  static Result Error(ErrorCode code, const std::string message = "") {
+    return {code, message};
   }
 
   operator bool() const {
@@ -42,7 +42,6 @@ struct Result {
 
   ErrorCode code;
   std::string message;
-  std::unique_ptr<Result> child;
 };
 
 // A helper for computations that may fail.

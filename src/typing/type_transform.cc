@@ -3,26 +3,31 @@
 #include <cassert>
 #include "intrinsics.h"
 #include "typing/function_solver.h"
+#include "typing/function_specializer.h"
 #include "typing/tuple_solver.h"
 #include "typing/primitive_solver.h"
 #include "typing/typeable.h"
+#include "util/declaration_mapper.h"
 
 namespace darlang {
 namespace typing {
 
 bool TypeTransform::Module(ast::ModuleNode& node) {
-  TypeableMap typeables;
-  TypeableScope global_scope;
+  // TODO(acomminos): add support for exports, currently assumes presence of
+  //                  main function
 
-  // TODO(acomminos): break this into a separate pass so toplevel functions
-  //                  can mutually reference each other
-  for (auto& child : node.body) {
-    DeclarationTypeTransform decl_transform(log_, typeables, global_scope);
-    child->Visit(decl_transform);
-  }
+  util::DeclarationMap decl_map = util::DeclarationMapper::Map(node);
+  Specializer specializer(log_, decl_map);
+
+  // XXX(acomminos): add skeleton intrinsics
+
+  // TODO(acomminos): constrain main: void -> int
+  TypeablePtr main_ret = Typeable::Create(std::make_unique<PrimitiveSolver>(PrimitiveType::Int64));
+  specializer.Specialize("main", {}, main_ret);
 
   // After building up typeable constraints, attempt to solve for concrete types.
   TypeMap types;
+  /*
   bool error = false;
   for (auto& map_pair : typeables) {
     auto& node_id = map_pair.first;
@@ -38,38 +43,14 @@ bool TypeTransform::Module(ast::ModuleNode& node) {
   if (error) {
     log_.Fatal("type check stage failed, stopping", node.start);
   }
+  */
 
   set_result(std::move(types));
   return false;
 }
 
-bool DeclarationTypeTransform::Declaration(ast::DeclarationNode& node) {
-  auto decl_solver = std::make_unique<FunctionSolver>(node.args.size());
-  auto decl_args = decl_solver->args();
-  auto decl_yield = decl_solver->yield();
-
-  auto func_typeable = Typeable::Create(std::move(decl_solver));
-  global_scope_.Assign(node.name, func_typeable.get());
-
-  TypeableScope func_scope(&global_scope_);
-  // Create typeable declarations for all argument identifiers.
-  for (int i = 0; i < node.args.size(); i++) {
-    func_scope.Assign(node.args[i], decl_args[i].get());
-  }
-
-  auto expr_typeable = ExpressionTypeTransform(log_, typeables_, func_scope).Annotate(*node.expr);
-  assert(expr_typeable);
-
-  assert(decl_yield->Unify(expr_typeable));
-
-  // TODO(acomminos): declare func_typeable first before recursing
-  typeables_[node.id] = func_typeable;
-
-  return false;
-}
-
 TypeablePtr ExpressionTypeTransform::AnnotateChild(ast::Node& node, const TypeableScope& scope) {
-  return ExpressionTypeTransform(log_, annotations(), scope).Annotate(node);
+  return ExpressionTypeTransform(log_, annotations(), scope, specializer_).Annotate(node);
 }
 
 bool ExpressionTypeTransform::IdExpression(ast::IdExpressionNode& node, TypeablePtr& out_typeable) {
@@ -100,45 +81,18 @@ bool ExpressionTypeTransform::IntegralLiteral(ast::IntegralLiteralNode& node, Ty
 }
 
 bool ExpressionTypeTransform::Invocation(ast::InvocationNode& node, TypeablePtr& out_typeable) {
+  // TODO(acomminos): don't perform polymorphic dispatch typing for lambdas
+  std::vector<TypeablePtr> args;
+  for (int i = 0; i < node.args.size(); i++) {
+    args.push_back(AnnotateChild(*node.args[i]));
+  }
+  auto yield = Typeable::Create();
+
   Result result;
-  // Constrain the function typeable associated with the callee.
-  // TODO(acomminos): have prepass populate toplevel functions/identifiers
-  auto func_typeable = scope_.Lookup(node.callee);
-  if (!func_typeable) {
-    // Attempt to resolve an intrinsic if we couldn't find the callee in scope.
-    // XXX(acomminos): should we always try to resolve intrinsics first?
-    if (GetIntrinsic(node.callee) != Intrinsic::UNKNOWN) {
-      // FIXME(acomminos): leave intrinsics unbound for now.
-      //                   progress towards templating is in
-      //                   typing/intrinsics.{h,cc}
-      out_typeable = Typeable::Create();
-      return false;
-    }
-    log_.Fatal(Result::Error(ErrorCode::ID_UNDECLARED, "undeclared function " + node.callee),
-               node.start);
-  }
-
-  // Unify each call against the underlying declaration type.
-  auto call_solver = std::make_unique<FunctionSolver>(node.args.size());
-  for (int i = 0; i < call_solver->args().size(); i++) {
-    auto& arg_typeable = call_solver->args()[i];
-    auto& arg_expr = node.args[i];
-    // Unify the callee's argument typeable against the expression used.
-    auto arg_expr_typeable = AnnotateChild(*arg_expr);
-
-    if (!(result = arg_typeable->Unify(arg_expr_typeable))) {
-      log_.Fatal(result, node.start);
-    }
-  }
-  out_typeable = call_solver->yield();
-
-  auto call_typeable = Typeable::Create(std::move(call_solver));
-  // After constructing a constrained invokee type, unify the declaration's
-  // typeable against the caller's typeable.
-  if (!(result = func_typeable->Unify(call_typeable))) {
+  if (!(result = specializer_.Specialize(node.callee, args, yield))) {
     log_.Fatal(result, node.start);
   }
-
+  out_typeable = yield;
   return false;
 }
 

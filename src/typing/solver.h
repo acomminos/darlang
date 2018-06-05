@@ -21,6 +21,7 @@ enum class TypeClass {
 class FunctionSolver;
 class TupleSolver;
 class PrimitiveSolver;
+class DisjointSolver;
 
 class Solver {
  public:
@@ -34,13 +35,16 @@ class Solver {
   // Implementation-specific unification methods to merge the callee object
   // into the provided solver. Compatible solvers should override the
   // appropriate methods, exporting their constraints into the passed solver.
-  virtual Result MergeInto(FunctionSolver& func_solver) {
+  virtual Result MergeInto(FunctionSolver& other) {
     return error_incompatible();
   }
-  virtual Result MergeInto(TupleSolver& func_solver) {
+  virtual Result MergeInto(TupleSolver& other) {
     return error_incompatible();
   }
-  virtual Result MergeInto(PrimitiveSolver& func_solver) {
+  virtual Result MergeInto(PrimitiveSolver& other) {
+    return error_incompatible();
+  }
+  virtual Result MergeInto(DisjointSolver& other) {
     return error_incompatible();
   }
 

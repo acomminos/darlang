@@ -20,6 +20,8 @@ typedef std::unordered_map<ast::NodeID, TypeablePtr> TypeableMap;
 // The output of the pass, storing materialized types for typeable nodes.
 typedef std::unordered_map<ast::NodeID, std::unique_ptr<Type>> TypeMap;
 
+class Specializer;
+
 // Traverses the given AST node, solving for a valid type assignment.
 class TypeTransform : public ast::Reducer<TypeMap> {
  public:
@@ -29,28 +31,12 @@ class TypeTransform : public ast::Reducer<TypeMap> {
   Logger& log_;
 };
 
-// Computes typeable constraints from a declaration.
-// Writes the traversed declaration to the given map of globals to typeables,
-// and recurses on function bodies.
-class DeclarationTypeTransform : public ast::Visitor {
- public:
-  DeclarationTypeTransform(Logger& log, TypeableMap& typeables, TypeableScope& globals)
-    : log_(log), typeables_(typeables), global_scope_(globals) {}
-
-  bool Declaration(ast::DeclarationNode& node) override;
-
- private:
-  Logger& log_;
-  TypeableMap& typeables_;
-  TypeableScope& global_scope_;
-};
-
 // Recursively annotates expression nodes with typeables, and returns the
 // typeable acting as the return value for the expression.
 class ExpressionTypeTransform : public ast::AnnotatedVisitor<TypeablePtr> {
  public:
-  ExpressionTypeTransform(Logger& log, TypeableMap& typeables, const TypeableScope& scope)
-    : AnnotatedVisitor(typeables), log_(log), scope_(scope) {}
+  ExpressionTypeTransform(Logger& log, TypeableMap& typeables, const TypeableScope& scope, Specializer& specializer)
+    : AnnotatedVisitor(typeables), log_(log), scope_(scope), specializer_(specializer) {}
 
   // Annotates the given node using this transform, and returns the resulting
   // typeable generated.
@@ -76,6 +62,7 @@ class ExpressionTypeTransform : public ast::AnnotatedVisitor<TypeablePtr> {
 
   Logger& log_;
   const TypeableScope& scope_;
+  Specializer& specializer_;
 };
 
 }  // namespace typing
