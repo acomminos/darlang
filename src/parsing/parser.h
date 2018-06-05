@@ -7,7 +7,7 @@
 #include "lexer.h"
 #include "logger.h"
 
-namespace darlang {
+namespace darlang::parsing {
 
 class Parser {
  public:
@@ -47,6 +47,6 @@ class Parser {
    TokenStream& ts_;
 };
 
-}  // namespace darlang
+}  // namespace darlang::parsing
 
 #endif  // DARLANG_SRC_PARSER_H_

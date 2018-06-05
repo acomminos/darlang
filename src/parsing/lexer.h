@@ -1,5 +1,5 @@
-#ifndef DARLANG_SRC_LEXER_H_
-#define DARLANG_SRC_LEXER_H_
+#ifndef DARLANG_SRC_PARSING_LEXER_H_
+#define DARLANG_SRC_PARSING_LEXER_H_
 
 #include <iostream>
 #include <stack>
@@ -10,7 +10,7 @@
 #include "logger.h"
 #include "util/location.h"
 
-namespace darlang {
+namespace darlang::parsing {
 
 struct Token {
   // Human-readable type labels indexed by Token::Type.
@@ -160,6 +160,6 @@ class TokenStream {
   std::stack<Token> buffered_;
 };
 
-}  // namespace darlang
+}  // namespace darlang::parsing
 
-#endif  // DARLANG_SRC_LEXER_H_
+#endif  // DARLANG_SRC_PARSING_LEXER_H_

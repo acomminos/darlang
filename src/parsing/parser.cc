@@ -1,9 +1,9 @@
-#include "parser.h"
+#include "parsing/parser.h"
 #include "errors.h"
 
 #include <cassert>
 
-namespace darlang {
+namespace darlang::parsing {
 
 // A helper class to annotate the parse start and end locations of a node.
 // Leverages the lifetime of the annotator to determine when parsing starts and
@@ -290,4 +290,4 @@ ast::NodePtr Parser::ParseTuple() {
   return std::move(node);
 }
 
-}  // namespace darlang
+}  // namespace darlang::parsing

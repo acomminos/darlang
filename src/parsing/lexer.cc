@@ -1,8 +1,8 @@
-#include "lexer.h"
+#include "parsing/lexer.h"
 
 #include <sstream>
 
-namespace darlang {
+namespace darlang::parsing {
 
 const char* Token::TypeNames[] = {
   "identifier",
@@ -169,4 +169,4 @@ Token Lexer::ReadStringLiteral() {
   return {Token::LITERAL_STRING, literal};
 }
 
-}  // namespace darlang
+}  // namespace darlang::parsing

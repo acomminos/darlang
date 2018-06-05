@@ -9,8 +9,8 @@ add_definitions(${LLVM_DEFINITIONS})
 set(
   DARLIB_SOURCES
 
-  src/lexer.cc
-  src/parser.cc
+  src/parsing/lexer.cc
+  src/parsing/parser.cc
 
   src/typing/typeable.cc
   src/typing/primitive_solver.cc

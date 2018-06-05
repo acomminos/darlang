@@ -1,9 +1,9 @@
 #include <fstream>
 #include <iostream>
 
-#include "lexer.h"
 #include "logger.h"
-#include "parser.h"
+#include "parsing/lexer.h"
+#include "parsing/parser.h"
 #include "backend/llvm_backend.h"
 #include "typing/type_transform.h"
 #include "typing/module_specializer.h"
@@ -34,10 +34,10 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  darlang::Lexer l(logger, *input, input_file);
-  darlang::TokenStream ts(l);
+  darlang::parsing::Lexer l(logger, *input, input_file);
+  darlang::parsing::TokenStream ts(l);
 
-  darlang::Parser p(logger, ts);
+  darlang::parsing::Parser p(logger, ts);
   auto module = p.ParseModule();
 
   if (print_ast) {
