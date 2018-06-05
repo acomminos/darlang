@@ -1,39 +1,54 @@
 #include "typing/intrinsics.h"
+#include "typing/function_solver.h"
+#include "typing/primitive_solver.h"
+#include "typing/function_specializer.h"
+
+#include <cassert>
 
 namespace darlang {
 namespace typing {
 
-std::unique_ptr<Typeable> CreateIntrinsicTypeable(Intrinsic intrinsic) {
+void LoadIntrinsic(Intrinsic intrinsic, Specializer& spec) {
   switch (intrinsic) {
     case Intrinsic::IS:
     {
-      auto typeable = std::make_unique<Typeable>();
-      std::vector<Typeable>* args;
+      auto supported_prims = {
+        PrimitiveType::Int64,
+        PrimitiveType::Boolean
+      };
 
-      assert(typeable->Solver()->ConstrainArguments(2, &args));
-      assert(args[0].Unify(args[1])); // Require an `is` comparison to have the same type.
-      assert(typeable->Solver()->Yields()->ConstrainPrimitive(PrimitiveType::Boolean));
+      for (auto arg_prim : supported_prims) {
+        auto arg_typeable = Typeable::Create(
+            std::make_unique<PrimitiveSolver>(arg_prim));
+        auto return_typeable = Typeable::Create(
+            std::make_unique<PrimitiveSolver>(PrimitiveType::Boolean));
 
-      return std::move(typeable);
+        auto solver = std::make_unique<FunctionSolver>(2);
+        assert(solver->args()[0]->Unify(arg_typeable));
+        assert(solver->args()[1]->Unify(arg_typeable));
+        assert(solver->yield()->Unify(return_typeable));
+
+        spec.AddExternal("is", Typeable::Create(std::move(solver)));
+      }
+      break;
     }
     case Intrinsic::MOD:
     {
-      auto typeable = std::make_unique<Typeable>();
-      std::vector<Typeable>* args;
+      // Only support integer modulo for the foreseeable future.
+      auto arg_typeable = Typeable::Create(
+          std::make_unique<PrimitiveSolver>(PrimitiveType::Int64));
 
-      // Ensure the two arguments and return value all have the same type.
-      //
-      // XXX(acomminos): Have the LLVM backend throw an error if the
-      // materialized primitive type is not supported, at least until we can
-      // represent union types in our constraint solver.
-      assert(typeable->Solver()->ConstrainArguments(2, &args));
-      assert(args[0].Unify(args[1]));
-      assert(typeable->Solver()->Yields()->Unify(args[0]));
+      auto solver = std::make_unique<FunctionSolver>(2);
+      assert(solver->args()[0]->Unify(arg_typeable));
+      assert(solver->args()[1]->Unify(arg_typeable));
+      assert(solver->yield()->Unify(arg_typeable));
 
-      return std::move(typeable);
+      spec.AddExternal("mod", Typeable::Create(std::move(solver)));
+      break;
     }
     default:
-      return nullptr;
+      assert(false);
+      break;
   }
 }
 

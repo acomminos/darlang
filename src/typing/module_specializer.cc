@@ -1,5 +1,6 @@
 #include "typing/module_specializer.h"
 #include "typing/primitive_solver.h"
+#include "typing/intrinsics.h"
 
 namespace darlang::typing {
 
@@ -18,6 +19,8 @@ bool ModuleSpecializer::Module(ast::ModuleNode& node) {
   Specializer specializer(log_, decl_map);
 
   // XXX(acomminos): add skeleton typeables for ALL intrinsics
+  LoadIntrinsic(Intrinsic::IS, specializer);
+  LoadIntrinsic(Intrinsic::MOD, specializer);
 
   if (is_program_) {
     // TODO(acomminos): have main take in command-line args
