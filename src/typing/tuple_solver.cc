@@ -69,7 +69,10 @@ Result TupleSolver::Solve(std::unique_ptr<Type>& out_type) {
     if (used_tags.find(tag) != used_tags.end()) {
       return Result::Error(ErrorCode::TYPE_INCOMPATIBLE, "duplicate tag '" + tag + "'");
     }
-    used_tags.insert(tag);
+    // Allow duplicate empty tags.
+    if (tag.size() > 0) {
+      used_tags.insert(tag);
+    }
 
     // If this item has been accessed via a tag, unify against the tag usages.
     auto tag_it = tagged_items_.find(tag);
