@@ -31,7 +31,9 @@ void LLVMTypeGenerator::Type(typing::Primitive& prim) {
       result_ = llvm::Type::getInt1Ty(context_);
       break;
     case typing::PrimitiveType::String:
-      assert(false); // TODO(acomminos)
+      // Treat all strings as a pointer to null-terminated 8-bit character data.
+      // We may want to represent this as a (ptr, len) tuple later.
+      result_ = llvm::Type::getInt8PtrTy(context_);
       break;
     default:
       assert(false);

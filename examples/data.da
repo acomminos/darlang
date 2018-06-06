@@ -2,6 +2,6 @@
 user(n, e) -> (~name n, ~email e, ~age 5)
 
 main() ->
-  u | user(0, 1);
-  x | user(0, u); # Example of polymorphic function specialization.
-  ~age(u)         # Tag getter. Subject to change.
+  u | user("joe", "joe@example.com");
+  x | user("polly", u); # Example of polymorphic function specialization.
+  5 # consider `~age(u)` notation for tag getter

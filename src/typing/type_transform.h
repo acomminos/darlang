@@ -44,6 +44,7 @@ class ExpressionTypeTransform : public ast::AnnotatedVisitor<TypeablePtr> {
 
   bool IdExpression(ast::IdExpressionNode& node, TypeablePtr& out_typeable) override;
   bool IntegralLiteral(ast::IntegralLiteralNode& node, TypeablePtr& out_typeable) override;
+  bool StringLiteral(ast::StringLiteralNode& node, TypeablePtr& out_typeable) override;
   bool Invocation(ast::InvocationNode& node, TypeablePtr& out_typeable) override;
   bool Guard(ast::GuardNode& node, TypeablePtr& out_typeable) override;
   bool Bind(ast::BindNode& node, TypeablePtr& out_typeable) override;

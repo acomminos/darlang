@@ -124,6 +124,14 @@ bool LLVMValueTransformer::IntegralLiteral(ast::IntegralLiteralNode& node) {
   return false;
 }
 
+bool LLVMValueTransformer::StringLiteral(ast::StringLiteralNode& node) {
+  // Represent strings as a pointer to null-terminated characters in static
+  // data. LLVM will automatically null-terminate this, which we may want to
+  // reconsider later.
+  value_ = builder_.CreateGlobalStringPtr(node.literal);
+  return false;
+}
+
 bool LLVMValueTransformer::BooleanLiteral(ast::BooleanLiteralNode& node) {
   value_ = llvm::ConstantInt::get(llvm::Type::getInt1Ty(context_), node.literal);
   return false;

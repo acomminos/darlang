@@ -41,6 +41,12 @@ bool ExpressionTypeTransform::IntegralLiteral(ast::IntegralLiteralNode& node, Ty
   return false;
 }
 
+bool ExpressionTypeTransform::StringLiteral(ast::StringLiteralNode& node, TypeablePtr& out_typeable) {
+  auto solver = std::make_unique<PrimitiveSolver>(PrimitiveType::String);
+  out_typeable = Typeable::Create(std::move(solver));
+  return false;
+}
+
 bool ExpressionTypeTransform::Invocation(ast::InvocationNode& node, TypeablePtr& out_typeable) {
   // TODO(acomminos): don't perform polymorphic dispatch typing for lambdas
   std::vector<TypeablePtr> args;

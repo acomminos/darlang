@@ -84,6 +84,7 @@ class LLVMValueTransformer : public ast::Visitor {
 
   bool IdExpression(ast::IdExpressionNode& node) override;
   bool IntegralLiteral(ast::IntegralLiteralNode& node) override;
+  bool StringLiteral(ast::StringLiteralNode& node) override;
   bool BooleanLiteral(ast::BooleanLiteralNode& node) override;
   bool Invocation(ast::InvocationNode& node) override;
   bool Guard(ast::GuardNode& node) override;
