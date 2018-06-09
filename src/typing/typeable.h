@@ -10,6 +10,7 @@ namespace typing {
 
 class Typeable;
 class Type;
+class Recurrence;
 class Solver;
 
 // A reference-counted typeable.
@@ -46,7 +47,7 @@ class Typeable : public std::enable_shared_from_this<Typeable> {
   // Only valid for the lifetime of a Solve() call.
   struct {
     bool active; // true iff a call to Solve() is in-progress.
-    std::vector<Type*> recurrences;
+    std::vector<Recurrence*> recurrences;
   } solve_run_;
 
   TypeablePtr parent_;

@@ -105,10 +105,10 @@ class Recurrence : public Type {
   // A stub constructor, to be used as a placeholder before the parent type is
   // fully synthesized.
   Recurrence() : parent_type_(nullptr) {}
-  Recurrence(Type* parent_type) : parent_type_(parent_type) {}
 
   void Visit(Visitor& visitor) override { visitor.Type(*this); }
 
+  void set_parent_type(const Type* type) { parent_type_ = type; }
   const Type* parent_type() const { return parent_type_; }
 
  private:

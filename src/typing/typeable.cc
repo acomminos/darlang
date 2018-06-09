@@ -58,8 +58,9 @@ Result Typeable::Solve(std::unique_ptr<Type>& out_type) {
       // If we've encountered a cycle, produce a stub type that indicates this
       // is a recurrence of some parent type. This stub will be set once the
       // parent is finished generating the appropriate type.
-      out_type = std::make_unique<Recurrence>();
-      solve_run_.recurrences.push_back(out_type.get());
+      auto recurrence = std::make_unique<Recurrence>();
+      solve_run_.recurrences.push_back(recurrence.get());
+      out_type = std::move(recurrence);
       return Result::Ok();
     }
 
@@ -68,7 +69,7 @@ Result Typeable::Solve(std::unique_ptr<Type>& out_type) {
 
     for (auto& recurrence : solve_run_.recurrences) {
       // FIXME(acomminos): should we really be overwriting the entire object?
-      *recurrence = Recurrence(out_type.get());
+      recurrence->set_parent_type(out_type.get());
     }
 
     solve_run_.active = false;

@@ -78,6 +78,21 @@ class LLVMSymbolNamer : public typing::Type::Visitor {
     value_ = FunctionSignature(func.arguments());
   }
 
+  void Type(typing::DisjointUnion& disjoint) {
+    std::stringstream ss;
+    ss << "D";
+    ss << disjoint.types().size();
+    for (const auto& type : disjoint.types()) {
+      ss << LLVMSymbolNamer::Name(*type);
+    }
+    value_ = ss.str();
+  }
+
+  void Type(typing::Recurrence& recurrence) {
+    // FIXME(acomminos): recurrences may be distinct, placeholder
+    value_ = "r";
+  }
+
   std::string value() { return value_; }
 
  private:
