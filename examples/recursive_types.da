@@ -1,0 +1,6 @@
+# Darlang has full support for simple recursive types.
+tuplify() -> (tuplify())
+
+main() ->
+  x | tuplify();
+  0

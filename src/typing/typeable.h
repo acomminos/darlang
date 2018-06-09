@@ -2,6 +2,7 @@
 #define DARLANG_SRC_TYPING_TYPEABLE_H_
 
 #include <memory>
+#include <vector>
 #include "errors.h"
 
 namespace darlang {
@@ -29,6 +30,7 @@ class Typeable : public std::enable_shared_from_this<Typeable> {
   // Unifies a typeable into this typeable, intersecting their type solvers.
   Result Unify(const TypeablePtr& other);
   // Attempts to solve for a concrete type using the underlying solver.
+  // If the type is recursive, self-references are automatically stubbed out.
   Result Solve(std::unique_ptr<Type>& out_type);
   // XXX: an "unsafe" prototype of a cleaner solve API, under the expectation
   // that all typeables are solvable. This may be the case one day, in which
@@ -40,6 +42,13 @@ class Typeable : public std::enable_shared_from_this<Typeable> {
  private:
   // null if the typeable is completely unbound.
   std::unique_ptr<Solver> solver_;
+  // A collection of fields related to the currently active solve run.
+  // Only valid for the lifetime of a Solve() call.
+  struct {
+    bool active; // true iff a call to Solve() is in-progress.
+    std::vector<Type*> recurrences;
+  } solve_run_;
+
   TypeablePtr parent_;
 };
 

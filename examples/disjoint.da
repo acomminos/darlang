@@ -1,0 +1,14 @@
+repeat(str, n) -> {
+  is(n, 0) : ();
+         * : (str, repeat(str, 0));
+}
+
+either(a, b, c) -> {
+  c : a;
+  * : b;
+}
+
+main() ->
+  some | either(1, "wew", is(1, 1));
+#  repstr | repeat("hello", 10);
+  0

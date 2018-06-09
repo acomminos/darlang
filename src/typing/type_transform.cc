@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include "typing/function_specializer.h"
+#include "typing/disjoint_solver.h"
 #include "typing/tuple_solver.h"
 #include "typing/primitive_solver.h"
 #include "typing/typeable.h"
@@ -64,15 +65,17 @@ bool ExpressionTypeTransform::Invocation(ast::InvocationNode& node, TypeablePtr&
 }
 
 bool ExpressionTypeTransform::Guard(ast::GuardNode& node, TypeablePtr& out_typeable) {
-  auto guard_typeable = Typeable::Create();
+  // Represent the result of a guard expression as a disjoint union of case
+  // types.
+  auto disjoint_solver = std::make_unique<DisjointSolver>();
   for (auto& guard_case : node.cases) {
     auto case_typeable = AnnotateChild(*guard_case.second);
-    assert(guard_typeable->Unify(case_typeable));
+    assert(disjoint_solver->Add(case_typeable));
   }
   auto wildcard_typeable = AnnotateChild(*node.wildcard_case);
-  assert(guard_typeable->Unify(wildcard_typeable));
+  assert(disjoint_solver->Add(wildcard_typeable));
 
-  out_typeable = guard_typeable;
+  out_typeable = Typeable::Create(std::move(disjoint_solver));
 
   return false;
 }

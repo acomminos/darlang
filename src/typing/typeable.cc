@@ -11,7 +11,7 @@ TypeablePtr Typeable::Create(std::unique_ptr<Solver> solver) {
 }
 
 Typeable::Typeable(std::unique_ptr<Solver> solver)
-  : solver_(std::move(solver)), parent_(nullptr) {
+  : solver_(std::move(solver)), solve_run_({false, {}}), parent_(nullptr) {
 }
 
 Result Typeable::Unify(const TypeablePtr& other) {
@@ -54,7 +54,26 @@ Result Typeable::Solve(std::unique_ptr<Type>& out_type) {
     return parent_->Solve(out_type);
   }
   if (solver_) {
-    return solver_->Solve(out_type);
+    if (solve_run_.active) {
+      // If we've encountered a cycle, produce a stub type that indicates this
+      // is a recurrence of some parent type. This stub will be set once the
+      // parent is finished generating the appropriate type.
+      out_type = std::make_unique<Recurrence>();
+      solve_run_.recurrences.push_back(out_type.get());
+      return Result::Ok();
+    }
+
+    solve_run_.active = true;
+    Result res = solver_->Solve(out_type);
+
+    for (auto& recurrence : solve_run_.recurrences) {
+      // FIXME(acomminos): should we really be overwriting the entire object?
+      *recurrence = Recurrence(out_type.get());
+    }
+
+    solve_run_.active = false;
+    solve_run_.recurrences = {};
+    return res;
   }
   // If we reached the root of the union-find tree and there is no solver, the
   // typeable lacks a specialization.
