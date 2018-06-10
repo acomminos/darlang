@@ -18,14 +18,15 @@ std::unique_ptr<llvm::Module> LLVMModuleTransformer::Transform(
 bool LLVMModuleTransformer::Module(ast::ModuleNode& node) {
   module_ = llvm::make_unique<llvm::Module>(node.name, context_);
   SymbolTable symbols;
+  LLVMTypeCache cache;
 
   // Perform an initial pass to populate function declarations.
-  LLVMDeclarationTransformer decl_transform(module_.get(), specs_, symbols);
+  LLVMDeclarationTransformer decl_transform(module_.get(), specs_, symbols, cache);
   for (auto& child : node.body) {
     child->Visit(decl_transform);
   }
 
-  LLVMFunctionTransformer func_transform(context_, specs_, symbols);
+  LLVMFunctionTransformer func_transform(context_, specs_, symbols, cache);
   for (auto& child : node.body) {
     child->Visit(func_transform);
   }
@@ -49,7 +50,7 @@ bool LLVMDeclarationTransformer::Declaration(ast::DeclarationNode& node) {
       symbol_name = node.name;
     }
 
-    auto func_type = static_cast<llvm::FunctionType*>(LLVMTypeGenerator::Generate(module_->getContext(), spec.func_typeable));
+    auto func_type = static_cast<llvm::FunctionType*>(LLVMTypeGenerator::Generate(module_->getContext(), spec.func_typeable, cache_));
     auto func = llvm::Function::Create(func_type, llvm::Function::ExternalLinkage, symbol_name, module_);
     // TODO(acomminos): check for duplicates, assign using symbol name
     symbols_.Assign(symbol_name, func);
@@ -95,7 +96,7 @@ bool LLVMFunctionTransformer::Declaration(ast::DeclarationNode& node) {
     llvm::IRBuilder<> builder(context_);
     builder.SetInsertPoint(entry_block);
 
-    auto expr = LLVMValueTransformer::Transform(context_, builder, spec.typeables, arg_symbols, *node.expr);
+    auto expr = LLVMValueTransformer::Transform(context_, builder, spec.typeables, arg_symbols, cache_, *node.expr);
     builder.CreateRet(expr);
   }
   return false;
@@ -106,8 +107,9 @@ llvm::Value* LLVMValueTransformer::Transform(llvm::LLVMContext& context,
                                              llvm::IRBuilder<>& builder,
                                              typing::TypeableMap& types,
                                              const SymbolTable& symbols,
+                                             LLVMTypeCache& cache,
                                              ast::Node& node) {
-  LLVMValueTransformer transformer(context, builder, types, symbols);
+  LLVMValueTransformer transformer(context, builder, types, symbols, cache);
   node.Visit(transformer);
   return transformer.value();
 }
@@ -140,7 +142,7 @@ bool LLVMValueTransformer::BooleanLiteral(ast::BooleanLiteralNode& node) {
 bool LLVMValueTransformer::Invocation(ast::InvocationNode& node) {
   std::vector<llvm::Value*> arg_values;
   for (auto& expr : node.args) {
-    auto value = LLVMValueTransformer::Transform(context_, builder_, types_, symbols_, *expr);
+    auto value = LLVMValueTransformer::Transform(context_, builder_, types_, symbols_, cache_, *expr);
     arg_values.push_back(value);
   }
 
@@ -185,7 +187,7 @@ bool LLVMValueTransformer::Guard(ast::GuardNode& node) {
   // Insert a phi node as the first instruction in the terminal block.
   builder_.SetInsertPoint(terminal_block);
 
-  llvm::Type* guard_type = LLVMTypeGenerator::Generate(context_, types_[node.id]);
+  llvm::Type* guard_type = LLVMTypeGenerator::Generate(context_, types_[node.id], cache_);
   assert(guard_type);
 
   auto phi_node = builder_.CreatePHI(guard_type, 1 + node.cases.size());
@@ -199,7 +201,7 @@ bool LLVMValueTransformer::Guard(ast::GuardNode& node) {
 
     // Compute the expression value in the case block and branch to the terminator.
     builder_.SetInsertPoint(case_block);
-    auto expr_value = LLVMValueTransformer::Transform(context_, builder_, types_, symbols_, *guard_case.second);
+    auto expr_value = LLVMValueTransformer::Transform(context_, builder_, types_, symbols_, cache_, *guard_case.second);
     phi_node->addIncoming(expr_value, case_block);
     builder_.CreateBr(terminal_block);
 
@@ -207,7 +209,7 @@ bool LLVMValueTransformer::Guard(ast::GuardNode& node) {
 
     // Add a conditional check to the prelude to jump to this case.
     builder_.SetInsertPoint(prelude_block);
-    auto cond_value = LLVMValueTransformer::Transform(context_, builder_, types_, symbols_, *guard_case.first);
+    auto cond_value = LLVMValueTransformer::Transform(context_, builder_, types_, symbols_, cache_, *guard_case.first);
     if (i < node.cases.size() - 1) {
       // Create and branch to the next possible case if this case's check fails.
       // All blocks' terminators must have a defined control flow.
@@ -223,7 +225,7 @@ bool LLVMValueTransformer::Guard(ast::GuardNode& node) {
 
   // Generate the wildcard (else) block.
   builder_.SetInsertPoint(wildcard_block);
-  auto wildcard_value = LLVMValueTransformer::Transform(context_, builder_, types_, symbols_, *node.wildcard_case);
+  auto wildcard_value = LLVMValueTransformer::Transform(context_, builder_, types_, symbols_, cache_, *node.wildcard_case);
   phi_node->addIncoming(wildcard_value, wildcard_block);
   builder_.CreateBr(terminal_block);
   parent_func->getBasicBlockList().push_back(wildcard_block);
@@ -237,18 +239,18 @@ bool LLVMValueTransformer::Guard(ast::GuardNode& node) {
 }
 
 bool LLVMValueTransformer::Bind(ast::BindNode& node) {
-  auto expr_value = LLVMValueTransformer::Transform(context_, builder_, types_, symbols_, *node.expr);
+  auto expr_value = LLVMValueTransformer::Transform(context_, builder_, types_, symbols_, cache_, *node.expr);
 
   SymbolTable scoped_table(symbols_);
   // TODO(acomminos): enforce identifier override?
   scoped_table.Assign(node.identifier, expr_value);
 
-  value_ = LLVMValueTransformer::Transform(context_, builder_, types_, scoped_table, *node.body);
+  value_ = LLVMValueTransformer::Transform(context_, builder_, types_, scoped_table, cache_, *node.body);
   return false;
 }
 
 bool LLVMValueTransformer::Tuple(ast::TupleNode& node) {
-  llvm::Type* tuple_type = LLVMTypeGenerator::Generate(context_, types_[node.id]);
+  llvm::Type* tuple_type = LLVMTypeGenerator::Generate(context_, types_[node.id], cache_);
   assert(tuple_type);
 
   // TODO: add support for heap-allocated tuples
@@ -258,7 +260,7 @@ bool LLVMValueTransformer::Tuple(ast::TupleNode& node) {
   unsigned int tuple_offset = 0;
   for (auto& item : node.items) {
     auto& node = std::get<ast::NodePtr>(item);
-    auto item_value = LLVMValueTransformer::Transform(context_, builder_, types_, symbols_, *node);
+    auto item_value = LLVMValueTransformer::Transform(context_, builder_, types_, symbols_, cache_, *node);
     // TODO(acomminos): fetch tuple element pointers in aggregate
     builder_.CreateInsertValue(struct_value, item_value, tuple_offset++);
   }

@@ -13,21 +13,30 @@
 namespace darlang {
 namespace backend {
 
+// In order to implement recursive types, structs must not be defined literally.
+// We still want to unique these structs however, which can be done by storing a
+// mapping of type hashes to llvm::Type* instances for a context.
+class LLVMTypeCache {
+ public:
+  llvm::Type* Lookup(const typing::Type& type) {
+    return types_[type.Hash()];
+  }
+  void Insert(const typing::Type& type, llvm::Type* llvm_type) {
+    types_[type.Hash()] = llvm_type;
+  }
+
+ private:
+  // A mapping from type hashes to llvm::Type* instances.
+  std::unordered_map<std::string, llvm::Type*> types_;
+};
+
 // Synthesizes an LLVM type from the given darlang-internal type.
 class LLVMTypeGenerator : public typing::Type::Visitor {
  public:
-  // A data structure storing intermediate types generated during the synthesis
-  // of a composite type. Useful for materializing recursive types.
-  struct TypedPath {
-    // FIXME(acomminos): should we really be using a pointer to a synthesized
-    // type to unique types on? I like the idea of having types hashable.
-    std::unordered_map<const typing::Type*, llvm::Type*> generated_types;
-  };
+  static llvm::Type* Generate(llvm::LLVMContext& context, typing::Type& type, LLVMTypeCache& cache);
+  static llvm::Type* Generate(llvm::LLVMContext& context, typing::TypeablePtr& typeable, LLVMTypeCache& cache);
 
-  static llvm::Type* Generate(llvm::LLVMContext& context, typing::Type& type, TypedPath path = {});
-  static llvm::Type* Generate(llvm::LLVMContext& context, typing::TypeablePtr& typeable, TypedPath path = {});
-
-  LLVMTypeGenerator(llvm::LLVMContext& context, TypedPath path);
+  LLVMTypeGenerator(llvm::LLVMContext& context, LLVMTypeCache& cache);
 
   llvm::Type* result() { return result_; }
 
@@ -39,7 +48,7 @@ class LLVMTypeGenerator : public typing::Type::Visitor {
   void Type(typing::Recurrence& recurrence) override;
 
   llvm::LLVMContext& context_;
-  TypedPath path_;
+  LLVMTypeCache& cache_;
   llvm::Type* result_;
 };
 

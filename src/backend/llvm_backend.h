@@ -17,6 +17,7 @@ namespace backend {
 
 // Scoped symbol table for arguments, bindings, and functions.
 typedef util::ScopedMap<std::string, llvm::Value*> SymbolTable;
+class LLVMTypeCache;
 
 class LLVMModuleTransformer : public ast::Visitor {
  public:
@@ -40,8 +41,8 @@ class LLVMModuleTransformer : public ast::Visitor {
 // Writes traversed function definitions to the provided symbol table.
 class LLVMDeclarationTransformer : public ast::Visitor {
  public:
-  LLVMDeclarationTransformer(llvm::Module* module, typing::SpecializationMap& specs, SymbolTable& symbols)
-    : module_(module), specs_(specs), symbols_(symbols) {}
+  LLVMDeclarationTransformer(llvm::Module* module, typing::SpecializationMap& specs, SymbolTable& symbols, LLVMTypeCache& cache)
+    : module_(module), specs_(specs), symbols_(symbols), cache_(cache) {}
 
  private:
   bool Declaration(ast::DeclarationNode& node) override;
@@ -50,6 +51,7 @@ class LLVMDeclarationTransformer : public ast::Visitor {
   llvm::Module* module_;
   typing::SpecializationMap& specs_;
   SymbolTable& symbols_;
+  LLVMTypeCache& cache_;
 };
 
 // Generates function bodies.
@@ -57,8 +59,9 @@ class LLVMFunctionTransformer : public ast::Visitor {
  public:
   LLVMFunctionTransformer(llvm::LLVMContext& context,
                           typing::SpecializationMap& specs,
-                          const SymbolTable& symbols)
-    : context_(context), specs_(specs), symbols_(symbols) {}
+                          const SymbolTable& symbols,
+                          LLVMTypeCache& cache)
+    : context_(context), specs_(specs), symbols_(symbols), cache_(cache) {}
 
  private:
   bool Declaration(ast::DeclarationNode& node) override;
@@ -66,6 +69,7 @@ class LLVMFunctionTransformer : public ast::Visitor {
   llvm::LLVMContext& context_;
   typing::SpecializationMap& specs_;
   const SymbolTable& symbols_;
+  LLVMTypeCache& cache_;
 };
 
 // Transforms AST nodes representing an expression into a llvm::Value* within
@@ -80,6 +84,7 @@ class LLVMValueTransformer : public ast::Visitor {
                                 llvm::IRBuilder<>& builder,
                                 typing::TypeableMap& types,
                                 const SymbolTable& symbols,
+                                LLVMTypeCache& cache,
                                 ast::Node& node);
 
   bool IdExpression(ast::IdExpressionNode& node) override;
@@ -95,17 +100,20 @@ class LLVMValueTransformer : public ast::Visitor {
 
  private:
   LLVMValueTransformer(llvm::LLVMContext& context, llvm::IRBuilder<>& builder,
-                       typing::TypeableMap& types, const SymbolTable& symbols)
+                       typing::TypeableMap& types, const SymbolTable& symbols,
+                       LLVMTypeCache& cache)
     : context_(context)
     , builder_(builder)
     , types_(types)
     , symbols_(symbols)
+    , cache_(cache)
     , value_(nullptr) {}
 
   llvm::LLVMContext& context_;
   llvm::IRBuilder<>& builder_;
   typing::TypeableMap& types_;
   const SymbolTable& symbols_;
+  LLVMTypeCache& cache_;
 
   llvm::Value* value_;
 };

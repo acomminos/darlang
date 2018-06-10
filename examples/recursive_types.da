@@ -1,5 +1,5 @@
 # Darlang has full support for simple recursive types.
-tuplify() -> (tuplify())
+tuplify() -> ("T", tuplify())
 
 main() ->
   x | tuplify();
