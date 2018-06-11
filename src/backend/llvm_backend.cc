@@ -253,18 +253,31 @@ bool LLVMValueTransformer::Tuple(ast::TupleNode& node) {
   llvm::Type* tuple_type = LLVMTypeGenerator::Generate(context_, types_[node.id], cache_);
   assert(tuple_type);
 
-  auto struct_addr = builder_.CreateAlloca(tuple_type);
-  auto struct_value = builder_.CreateLoad(struct_addr);
+  llvm::Value* struct_addr;
+  if (auto* ptr_type = llvm::dyn_cast<llvm::PointerType>(tuple_type)) {
+    // TODO/FIXME(acomminos): make a call to malloc() for tuples yielding a
+    //                        pointer type
+    struct_addr = builder_.CreateAlloca(ptr_type->getElementType());
+  } else {
+    struct_addr = builder_.CreateAlloca(tuple_type);
+  }
 
   unsigned int tuple_offset = 0;
   for (auto& item : node.items) {
     auto& node = std::get<ast::NodePtr>(item);
     auto item_value = LLVMValueTransformer::Transform(context_, builder_, types_, symbols_, cache_, *node);
     // TODO(acomminos): fetch tuple element pointers in aggregate
-    builder_.CreateInsertValue(struct_value, item_value, tuple_offset++);
+    llvm::Value* item_addr = builder_.CreateStructGEP(struct_addr, tuple_offset++);
+    builder_.CreateStore(item_value, item_addr);
   }
 
-  value_ = struct_value;
+
+  // Return a pointer iff the type is recursive (passed by pointer).
+  if (tuple_type->isPointerTy()) {
+    value_ = struct_addr;
+  } else {
+    value_ = builder_.CreateLoad(struct_addr);
+  }
 
   return false;
 }
