@@ -66,6 +66,13 @@ Result Typeable::Solve(std::unique_ptr<Type>& out_type) {
 
     solve_run_.active = true;
     Result res = solver_->Solve(out_type);
+    assert(out_type);
+
+    // Flag the parent type as being recursive to prevent a traversal to
+    // determine infinitely-sized recursive types.
+    if (solve_run_.recurrences.size() > 0) {
+      out_type->set_recursive(true);
+    }
 
     for (auto& recurrence : solve_run_.recurrences) {
       // FIXME(acomminos): should we really be overwriting the entire object?

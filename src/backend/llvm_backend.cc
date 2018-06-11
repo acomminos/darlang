@@ -253,7 +253,6 @@ bool LLVMValueTransformer::Tuple(ast::TupleNode& node) {
   llvm::Type* tuple_type = LLVMTypeGenerator::Generate(context_, types_[node.id], cache_);
   assert(tuple_type);
 
-  // TODO: add support for heap-allocated tuples
   auto struct_addr = builder_.CreateAlloca(tuple_type);
   auto struct_value = builder_.CreateLoad(struct_addr);
 

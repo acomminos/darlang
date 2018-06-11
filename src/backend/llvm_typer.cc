@@ -8,7 +8,14 @@ namespace backend {
 llvm::Type* LLVMTypeGenerator::Generate(llvm::LLVMContext& context, typing::Type& type, LLVMTypeCache& cache) {
   LLVMTypeGenerator generator(context, cache);
   type.Visit(generator);
-  return generator.result();
+  llvm::Type* result = generator.result();
+  if (result->isStructTy() && type.recursive()) {
+    // Darlang requires all recursive types to be passed via pointer, as the
+    // function polymorpher does not permit variadic return types to implement
+    // heap-allocated recurrences.
+    return result->getPointerTo();
+  }
+  return result;
 }
 
 llvm::Type* LLVMTypeGenerator::Generate(llvm::LLVMContext& context, typing::TypeablePtr& typeable, LLVMTypeCache& cache) {
@@ -105,12 +112,13 @@ void LLVMTypeGenerator::Type(typing::DisjointUnion& disjoint) {
 }
 
 void LLVMTypeGenerator::Type(typing::Recurrence& recurrence) {
-  // TODO(acomminos): recurrence types indicate a reference to a parent type,
-  // modeled by a pointer to that intermediary type being generated.
+  // XXX(acomminos): All recursive types are required to be passed by pointer.
+  //                 LLVMTypeGenerator::Generate() will ensure that the returned
+  //                 type is always a pointer.
   assert(recurrence.parent_type());
   llvm::Type* parent_type = cache_.Lookup(*recurrence.parent_type());
   assert(parent_type);
-  result_ = parent_type->getPointerTo();
+  result_ = parent_type;
 }
 
 }  // namespace backend

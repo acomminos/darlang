@@ -34,6 +34,13 @@ class Type {
   // Two typeables with the same solver data should generate identical hashes.
   // Permitted (but not required) to be human readable.
   virtual std::string Hash() const = 0;
+
+  // Sets whether or not a subtype of this type refers to a parent type.
+  void set_recursive(bool recursive) { recursive_ = recursive; }
+  bool recursive() { return recursive_; }
+
+ private:
+  bool recursive_;
 };
 
 // A function with zero or more arguments, returning a singular type.
@@ -148,7 +155,9 @@ class Recurrence : public Type {
  public:
   // A stub constructor, to be used as a placeholder before the parent type is
   // fully synthesized.
-  Recurrence() : parent_type_(nullptr) {}
+  Recurrence() : parent_type_(nullptr) {
+    set_recursive(true);
+  }
 
   void Visit(Visitor& visitor) override { visitor.Type(*this); }
   std::string Hash() const override {

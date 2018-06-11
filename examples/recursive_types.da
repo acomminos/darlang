@@ -1,6 +1,12 @@
 # Darlang has full support for simple recursive types.
-tuplify() -> ("T", tuplify())
+# Observe that the return value will be heap allocated, versus
+# `tuplifynorecurse` which will return a struct literal.
+tuplify() -> (tuplify())
+
+# Non-recursive stub to contrast generated IR with.
+tuplifynorecurse() -> ()
 
 main() ->
   x | tuplify();
+  y | tuplifynorecurse();
   0
