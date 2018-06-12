@@ -100,7 +100,7 @@ void LLVMTypeGenerator::Type(typing::DisjointUnion& disjoint) {
     // FIXME(acomminos): don't use default data layout, share with module
     llvm::DataLayout layout("");
     llvm::Type* subtype = LLVMTypeGenerator::Generate(context_, *type, cache_);
-    auto bytes = layout.getTypeSizeInBits(subtype) / 8;
+    auto bytes = layout.getTypeAllocSize(subtype);
     max_bytes = bytes > max_bytes ? bytes : max_bytes;
   }
 

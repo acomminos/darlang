@@ -17,6 +17,8 @@ namespace backend {
 
 // Scoped symbol table for arguments, bindings, and functions.
 typedef util::ScopedMap<std::string, llvm::Value*> SymbolTable;
+
+class LLVMPrelude;
 class LLVMTypeCache;
 
 class LLVMModuleTransformer : public ast::Visitor {
@@ -60,8 +62,10 @@ class LLVMFunctionTransformer : public ast::Visitor {
   LLVMFunctionTransformer(llvm::LLVMContext& context,
                           typing::SpecializationMap& specs,
                           const SymbolTable& symbols,
-                          LLVMTypeCache& cache)
-    : context_(context), specs_(specs), symbols_(symbols), cache_(cache) {}
+                          LLVMTypeCache& cache,
+                          LLVMPrelude& prelude)
+    : context_(context), specs_(specs), symbols_(symbols), cache_(cache)
+    , prelude_(prelude) {}
 
  private:
   bool Declaration(ast::DeclarationNode& node) override;
@@ -70,6 +74,7 @@ class LLVMFunctionTransformer : public ast::Visitor {
   typing::SpecializationMap& specs_;
   const SymbolTable& symbols_;
   LLVMTypeCache& cache_;
+  LLVMPrelude& prelude_;
 };
 
 // Transforms AST nodes representing an expression into a llvm::Value* within
@@ -85,6 +90,7 @@ class LLVMValueTransformer : public ast::Visitor {
                                 typing::TypeableMap& types,
                                 const SymbolTable& symbols,
                                 LLVMTypeCache& cache,
+                                LLVMPrelude& prelude,
                                 ast::Node& node);
 
   bool IdExpression(ast::IdExpressionNode& node) override;
@@ -101,12 +107,13 @@ class LLVMValueTransformer : public ast::Visitor {
  private:
   LLVMValueTransformer(llvm::LLVMContext& context, llvm::IRBuilder<>& builder,
                        typing::TypeableMap& types, const SymbolTable& symbols,
-                       LLVMTypeCache& cache)
+                       LLVMTypeCache& cache, LLVMPrelude& prelude)
     : context_(context)
     , builder_(builder)
     , types_(types)
     , symbols_(symbols)
     , cache_(cache)
+    , prelude_(prelude)
     , value_(nullptr) {}
 
   llvm::LLVMContext& context_;
@@ -114,6 +121,7 @@ class LLVMValueTransformer : public ast::Visitor {
   typing::TypeableMap& types_;
   const SymbolTable& symbols_;
   LLVMTypeCache& cache_;
+  LLVMPrelude& prelude_;
 
   llvm::Value* value_;
 };

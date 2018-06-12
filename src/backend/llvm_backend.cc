@@ -2,6 +2,7 @@
 #include "backend/llvm_intrinsics.h"
 #include "backend/llvm_symbol_namer.h"
 #include "backend/llvm_typer.h"
+#include "backend/llvm_prelude.h"
 #include "typing/solver.h"
 
 namespace darlang {
@@ -20,13 +21,16 @@ bool LLVMModuleTransformer::Module(ast::ModuleNode& node) {
   SymbolTable symbols;
   LLVMTypeCache cache;
 
+  llvm::DataLayout layout(module_.get());
+  LLVMPrelude prelude(module_.get(), layout);
+
   // Perform an initial pass to populate function declarations.
   LLVMDeclarationTransformer decl_transform(module_.get(), specs_, symbols, cache);
   for (auto& child : node.body) {
     child->Visit(decl_transform);
   }
 
-  LLVMFunctionTransformer func_transform(context_, specs_, symbols, cache);
+  LLVMFunctionTransformer func_transform(context_, specs_, symbols, cache, prelude);
   for (auto& child : node.body) {
     child->Visit(func_transform);
   }
@@ -96,7 +100,7 @@ bool LLVMFunctionTransformer::Declaration(ast::DeclarationNode& node) {
     llvm::IRBuilder<> builder(context_);
     builder.SetInsertPoint(entry_block);
 
-    auto expr = LLVMValueTransformer::Transform(context_, builder, spec.typeables, arg_symbols, cache_, *node.expr);
+    auto expr = LLVMValueTransformer::Transform(context_, builder, spec.typeables, arg_symbols, cache_, prelude_, *node.expr);
     builder.CreateRet(expr);
   }
   return false;
@@ -108,8 +112,9 @@ llvm::Value* LLVMValueTransformer::Transform(llvm::LLVMContext& context,
                                              typing::TypeableMap& types,
                                              const SymbolTable& symbols,
                                              LLVMTypeCache& cache,
+                                             LLVMPrelude& prelude,
                                              ast::Node& node) {
-  LLVMValueTransformer transformer(context, builder, types, symbols, cache);
+  LLVMValueTransformer transformer(context, builder, types, symbols, cache, prelude);
   node.Visit(transformer);
   return transformer.value();
 }
@@ -142,7 +147,7 @@ bool LLVMValueTransformer::BooleanLiteral(ast::BooleanLiteralNode& node) {
 bool LLVMValueTransformer::Invocation(ast::InvocationNode& node) {
   std::vector<llvm::Value*> arg_values;
   for (auto& expr : node.args) {
-    auto value = LLVMValueTransformer::Transform(context_, builder_, types_, symbols_, cache_, *expr);
+    auto value = LLVMValueTransformer::Transform(context_, builder_, types_, symbols_, cache_, prelude_, *expr);
     arg_values.push_back(value);
   }
 
@@ -201,7 +206,7 @@ bool LLVMValueTransformer::Guard(ast::GuardNode& node) {
 
     // Compute the expression value in the case block and branch to the terminator.
     builder_.SetInsertPoint(case_block);
-    auto expr_value = LLVMValueTransformer::Transform(context_, builder_, types_, symbols_, cache_, *guard_case.second);
+    auto expr_value = LLVMValueTransformer::Transform(context_, builder_, types_, symbols_, cache_, prelude_, *guard_case.second);
     phi_node->addIncoming(expr_value, case_block);
     builder_.CreateBr(terminal_block);
 
@@ -209,7 +214,7 @@ bool LLVMValueTransformer::Guard(ast::GuardNode& node) {
 
     // Add a conditional check to the prelude to jump to this case.
     builder_.SetInsertPoint(prelude_block);
-    auto cond_value = LLVMValueTransformer::Transform(context_, builder_, types_, symbols_, cache_, *guard_case.first);
+    auto cond_value = LLVMValueTransformer::Transform(context_, builder_, types_, symbols_, cache_, prelude_, *guard_case.first);
     if (i < node.cases.size() - 1) {
       // Create and branch to the next possible case if this case's check fails.
       // All blocks' terminators must have a defined control flow.
@@ -225,7 +230,7 @@ bool LLVMValueTransformer::Guard(ast::GuardNode& node) {
 
   // Generate the wildcard (else) block.
   builder_.SetInsertPoint(wildcard_block);
-  auto wildcard_value = LLVMValueTransformer::Transform(context_, builder_, types_, symbols_, cache_, *node.wildcard_case);
+  auto wildcard_value = LLVMValueTransformer::Transform(context_, builder_, types_, symbols_, cache_, prelude_, *node.wildcard_case);
   phi_node->addIncoming(wildcard_value, wildcard_block);
   builder_.CreateBr(terminal_block);
   parent_func->getBasicBlockList().push_back(wildcard_block);
@@ -239,13 +244,13 @@ bool LLVMValueTransformer::Guard(ast::GuardNode& node) {
 }
 
 bool LLVMValueTransformer::Bind(ast::BindNode& node) {
-  auto expr_value = LLVMValueTransformer::Transform(context_, builder_, types_, symbols_, cache_, *node.expr);
+  auto expr_value = LLVMValueTransformer::Transform(context_, builder_, types_, symbols_, cache_, prelude_, *node.expr);
 
   SymbolTable scoped_table(symbols_);
   // TODO(acomminos): enforce identifier override?
   scoped_table.Assign(node.identifier, expr_value);
 
-  value_ = LLVMValueTransformer::Transform(context_, builder_, types_, scoped_table, cache_, *node.body);
+  value_ = LLVMValueTransformer::Transform(context_, builder_, types_, scoped_table, cache_, prelude_, *node.body);
   return false;
 }
 
@@ -257,7 +262,7 @@ bool LLVMValueTransformer::Tuple(ast::TupleNode& node) {
   if (auto* ptr_type = llvm::dyn_cast<llvm::PointerType>(tuple_type)) {
     // TODO/FIXME(acomminos): make a call to malloc() for tuples yielding a
     //                        pointer type
-    struct_addr = builder_.CreateAlloca(ptr_type->getElementType());
+    struct_addr = prelude_.CreateHeapAlloc(builder_, ptr_type->getElementType());
   } else {
     struct_addr = builder_.CreateAlloca(tuple_type);
   }
@@ -265,12 +270,11 @@ bool LLVMValueTransformer::Tuple(ast::TupleNode& node) {
   unsigned int tuple_offset = 0;
   for (auto& item : node.items) {
     auto& node = std::get<ast::NodePtr>(item);
-    auto item_value = LLVMValueTransformer::Transform(context_, builder_, types_, symbols_, cache_, *node);
+    auto item_value = LLVMValueTransformer::Transform(context_, builder_, types_, symbols_, cache_, prelude_, *node);
     // TODO(acomminos): fetch tuple element pointers in aggregate
     llvm::Value* item_addr = builder_.CreateStructGEP(struct_addr, tuple_offset++);
     builder_.CreateStore(item_value, item_addr);
   }
-
 
   // Return a pointer iff the type is recursive (passed by pointer).
   if (tuple_type->isPointerTy()) {
