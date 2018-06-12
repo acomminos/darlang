@@ -17,7 +17,7 @@ int main(int argc, char* argv[]) {
   llvm::cl::opt<std::string> input_file(llvm::cl::Positional, llvm::cl::desc("<input file>"), llvm::cl::init("-"));
   llvm::cl::opt<bool> print_ast("print-ast", llvm::cl::desc("pretty prints the AST instead of doing anything useful"), llvm::cl::init(false));
 
-  llvm::cl::ParseCommandLineOptions(argc, argv);
+  llvm::cl::ParseCommandLineOptions(argc, argv, "a darlang to LLVM IR compiler");
 
   darlang::Logger logger(std::cerr);
 
@@ -51,22 +51,5 @@ int main(int argc, char* argv[]) {
 
   llvm::LLVMContext llvm_context;
   auto llvm_module = darlang::backend::LLVMModuleTransformer::Transform(llvm_context, types, *module);
-  llvm_module->print(llvm::errs(), nullptr);
-
-  /*
-  // XXX(acomminos): hackish object code generation
-  auto target_triple = llvm::sys::getDefaultTargetTriple();
-  std::string error;
-  auto target = llvm::TargetRegistry::lookupTarget(targetTriple, error);
-  if (!target) {
-    std::cerr << error << std::endl;
-    return 1;
-  }
-  auto target_machine = target->createTargetMachine(target_triple, "generic", "", llvm::Optional<llvm::Reloc::Model>());
-  llvm_module->setDataLayout(target_machine->createDataLayout());
-  llvm_module->setTargetTriple(target_triple);
-
-  std::string obj_filename = std::string(filename) + ".o";
-  */
-  delete input;
+  llvm_module->print(llvm::outs(), nullptr);
 }
