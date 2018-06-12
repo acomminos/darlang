@@ -2,6 +2,12 @@
 
 `darlang` is a purely functional, statically typed language that compiles to LLVM IR.
 
+    # A simple implementation of the euclidean algorithm.
+    euclid(a, b) -> {
+        is(b, 0) : a;
+               * : euclid(b, mod(a, b));
+    }
+
 ## Interesting features
 
 - Type inference (module-level)
