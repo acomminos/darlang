@@ -65,17 +65,38 @@ bool ExpressionTypeTransform::Invocation(ast::InvocationNode& node, TypeablePtr&
 }
 
 bool ExpressionTypeTransform::Guard(ast::GuardNode& node, TypeablePtr& out_typeable) {
-  // Represent the result of a guard expression as a disjoint union of case
-  // types.
-  auto disjoint_solver = std::make_unique<DisjointSolver>();
+  std::vector<TypeablePtr> case_types;
   for (auto& guard_case : node.cases) {
-    auto case_typeable = AnnotateChild(*guard_case.second);
-    assert(disjoint_solver->Add(case_typeable));
+    case_types.push_back(AnnotateChild(*guard_case.second));
   }
-  auto wildcard_typeable = AnnotateChild(*node.wildcard_case);
-  assert(disjoint_solver->Add(wildcard_typeable));
+  case_types.push_back(AnnotateChild(*node.wildcard_case));
 
-  out_typeable = Typeable::Create(std::move(disjoint_solver));
+  // Attempt to unify all branches of the guard expression. If this fails, fall
+  // back to a disjoint type.
+  std::vector<TypeablePtr> reduced_case_types;
+  for (auto& type : case_types) {
+    // Invariant: all elements of `reduced_case_types` are disjoint.
+    bool unified = false;
+    for (auto& reduced_type : reduced_case_types) {
+      if (type->Unify(reduced_type)) {
+        unified = true;
+        break;
+      }
+    }
+    if (!unified) {
+      reduced_case_types.push_back(type);
+    }
+  }
+
+  if (reduced_case_types.size() == 1) {
+    out_typeable = case_types.front();
+  } else {
+    auto disjoint_solver = std::make_unique<DisjointSolver>();
+    for (auto& type : reduced_case_types) {
+      disjoint_solver->Add(type);
+    }
+    out_typeable = Typeable::Create(std::move(disjoint_solver));
+  }
 
   return false;
 }

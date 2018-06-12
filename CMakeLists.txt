@@ -22,6 +22,7 @@ set(
   src/typing/intrinsics.cc
   src/typing/module_specializer.cc
 
+  src/backend/llvm_prelude.cc
   src/backend/llvm_typer.cc
   src/backend/llvm_backend.cc
 )
