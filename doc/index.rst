@@ -10,7 +10,7 @@ Welcome to darlang's documentation!
    :maxdepth: 2
    :caption: Contents:
 
-   introduction
+   basics
    types
    specialization
    quirks
