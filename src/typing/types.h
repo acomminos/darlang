@@ -28,6 +28,8 @@ class Type {
     virtual void Type(Recurrence& recurrence) = 0;
   };
 
+  Type() : recursive_(false) {}
+
   virtual void Visit(Visitor& visitor) = 0;
 
   // Returns a hash uniquely identifying the type's specifications.
