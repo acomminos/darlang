@@ -1,6 +1,8 @@
 # darlang
 
-`darlang` is a purely functional, statically typed language that compiles to LLVM IR.
+[![Documentation Status](https://readthedocs.org/projects/darlang/badge/?version=latest)](https://darlang.readthedocs.io/en/latest/?badge=latest)
+
+`darlang` is a functional, statically typed language that compiles to LLVM IR.
 
 This project exists as a playground to experiment with complex type systems. The current implementation is quite rough around the edges, and lacks critical primitives that are required to construct meaningful software. In lieu of these, however, are elegant typing semantics with a fun syntax.
 
