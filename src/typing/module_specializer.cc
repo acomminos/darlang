@@ -21,6 +21,7 @@ bool ModuleSpecializer::Module(ast::ModuleNode& node) {
   // XXX(acomminos): add skeleton typeables for ALL intrinsics
   LoadIntrinsic(Intrinsic::IS, specializer);
   LoadIntrinsic(Intrinsic::MOD, specializer);
+  LoadIntrinsic(Intrinsic::ADD, specializer);
 
   if (is_program_) {
     // TODO(acomminos): have main take in command-line args

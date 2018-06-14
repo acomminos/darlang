@@ -8,6 +8,23 @@
 namespace darlang {
 namespace typing {
 
+template <typename ... Args>
+static TypeablePtr CreatePrimitiveFunction(PrimitiveType yield, Args... args) {
+  const std::vector<PrimitiveType> arg_vector = {args...};
+  auto solver = std::make_unique<FunctionSolver>(arg_vector.size());
+
+  int arg_index = 0;
+  for (const auto arg_prim : arg_vector) {
+    auto arg_type = Typeable::Create(std::make_unique<PrimitiveSolver>(arg_prim));
+    assert(solver->args()[arg_index++]->Unify(arg_type));
+  }
+
+  auto yield_type = Typeable::Create(std::make_unique<PrimitiveSolver>(yield));
+  assert(solver->yield()->Unify(yield_type));
+
+  return Typeable::Create(std::move(solver));
+}
+
 void LoadIntrinsic(Intrinsic intrinsic, Specializer& spec) {
   switch (intrinsic) {
     case Intrinsic::IS:
@@ -18,32 +35,25 @@ void LoadIntrinsic(Intrinsic intrinsic, Specializer& spec) {
       };
 
       for (auto arg_prim : supported_prims) {
-        auto arg_typeable = Typeable::Create(
-            std::make_unique<PrimitiveSolver>(arg_prim));
-        auto return_typeable = Typeable::Create(
-            std::make_unique<PrimitiveSolver>(PrimitiveType::Boolean));
-
-        auto solver = std::make_unique<FunctionSolver>(2);
-        assert(solver->args()[0]->Unify(arg_typeable));
-        assert(solver->args()[1]->Unify(arg_typeable));
-        assert(solver->yield()->Unify(return_typeable));
-
-        spec.AddExternal("is", Typeable::Create(std::move(solver)));
+        TypeablePtr type = CreatePrimitiveFunction(PrimitiveType::Boolean, arg_prim, arg_prim);
+        spec.AddExternal("is", type);
       }
       break;
     }
     case Intrinsic::MOD:
     {
       // Only support integer modulo for the foreseeable future.
-      auto arg_typeable = Typeable::Create(
-          std::make_unique<PrimitiveSolver>(PrimitiveType::Int64));
-
-      auto solver = std::make_unique<FunctionSolver>(2);
-      assert(solver->args()[0]->Unify(arg_typeable));
-      assert(solver->args()[1]->Unify(arg_typeable));
-      assert(solver->yield()->Unify(arg_typeable));
-
-      spec.AddExternal("mod", Typeable::Create(std::move(solver)));
+      PrimitiveType prim = PrimitiveType::Int64;
+      TypeablePtr type = CreatePrimitiveFunction(prim, prim, prim);
+      spec.AddExternal("mod", type);
+      break;
+    }
+    case Intrinsic::ADD:
+    {
+      // Only support integer addition for now.
+      PrimitiveType prim = PrimitiveType::Int64;
+      TypeablePtr type = CreatePrimitiveFunction(prim, prim, prim);
+      spec.AddExternal("add", type);
       break;
     }
     default:

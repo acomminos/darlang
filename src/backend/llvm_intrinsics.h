@@ -17,6 +17,10 @@ llvm::Value* GenerateIntrinsic(Intrinsic intrinsic, std::vector<llvm::Value*> ar
       // TODO: type this for integers + floats, signed and unsigned?
       assert(args.size() == 2);
       return builder.CreateSRem(args[0], args[1]);
+    case Intrinsic::ADD:
+      // TODO: type this for integers + floats, signed and unsigned?
+      assert(args.size() == 2);
+      return builder.CreateAdd(args[0], args[1]);
     default:
       assert(false);
   }
