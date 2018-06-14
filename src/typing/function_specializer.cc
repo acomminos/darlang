@@ -53,7 +53,7 @@ Result Specializer::Specialize(std::string callee,
   // references) their code is already generated and we cannot continue.
   auto node = decl_nodes_.find(callee);
   if (node == decl_nodes_.end()) {
-    return Result::Error(ErrorCode::ID_UNDECLARED, "could not specialize external function " + callee);
+    return Result::Error(ErrorCode::ID_UNDECLARED, "could not specialize function " + callee);
   }
 
   FunctionSpecializer func_specializer(log_, *this, spec);

@@ -41,14 +41,14 @@ bool LLVMDeclarationTransformer::Declaration(ast::DeclarationNode& node) {
   auto func_specs = specs_.Get(node.name);
 
   // Only allow one specialization for monomorphic functions.
-  if (!node.polymorphic) {
+  if (!node.exported) {
     assert(func_specs.size() == 1);
   }
   // TODO(acomminos): warn about empty func_specs?
 
   for (auto& spec : func_specs) {
     std::string symbol_name;
-    if (node.polymorphic) {
+    if (node.exported) {
       symbol_name = LLVMSymbolNamer::Declaration(node.name, *spec.func_typeable->Solve());
     } else {
       symbol_name = node.name;
@@ -72,14 +72,14 @@ bool LLVMFunctionTransformer::Declaration(ast::DeclarationNode& node) {
   auto func_specs = specs_.Get(node.name);
 
   // Only allow one specialization for monomorphic functions.
-  if (!node.polymorphic) {
+  if (!node.exported) {
     assert(func_specs.size() == 1);
   }
 
   // TODO(acomminos): warn about empty func_specs?
   for (auto& spec : func_specs) {
     std::string symbol_name;
-    if (node.polymorphic) {
+    if (node.exported) {
       symbol_name = LLVMSymbolNamer::Declaration(node.name, *spec.func_typeable->Solve());
     } else {
       symbol_name = node.name;

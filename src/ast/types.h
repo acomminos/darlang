@@ -80,8 +80,8 @@ struct ModuleNode : public Node {
 };
 
 struct DeclarationNode : public Node {
-  DeclarationNode(std::string name, std::vector<std::string> args, std::unique_ptr<Node> expr, bool polymorphic)
-    : name(name), args(args), expr(std::move(expr)), polymorphic(polymorphic) {
+  DeclarationNode(std::string name, std::vector<std::string> args, std::unique_ptr<Node> expr, bool exported)
+    : name(name), args(args), expr(std::move(expr)), exported(exported) {
     this->expr->parent = this;
   }
 
@@ -95,7 +95,7 @@ struct DeclarationNode : public Node {
   std::string name;
   std::vector<std::string> args;
   std::unique_ptr<Node> expr;
-  bool polymorphic;
+  bool exported;
 };
 
 struct IdExpressionNode : public Node {

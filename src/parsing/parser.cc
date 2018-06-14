@@ -79,10 +79,10 @@ ast::NodePtr Parser::ParseDecl() {
   auto node_expr = ParseExpr();
 
   // FIXME(acomminos): for now, until we implement function exports, main is the
-  // only non-polymorphic function permitted. set this bit accordingly.
-  bool polymorphic = tok_id.value.compare("main") != 0;
+  // only export permitted. set this bit accordingly.
+  bool exported = tok_id.value.compare("main") != 0;
 
-  auto node = std::make_unique<ast::DeclarationNode>(tok_id.value, args, std::move(node_expr), polymorphic);
+  auto node = std::make_unique<ast::DeclarationNode>(tok_id.value, args, std::move(node_expr), exported);
   sla.Set(node.get());
 
   return std::move(node);
